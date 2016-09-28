@@ -7,34 +7,34 @@
 using T_ENUMTYPE##T_ENUMCLASS = std::underlying_type<T_ENUMCLASS>::type;\
 inline T_ENUMCLASS operator | (T_ENUMCLASS lhs, T_ENUMCLASS rhs)\
 {\
-	return (T_ENUMCLASS)(static_cast<T_ENUMTYPE##T_ENUMCLASS>(lhs) | static_cast<T_ENUMTYPE##T_ENUMCLASS>(rhs));\
+    return (T_ENUMCLASS)(static_cast<T_ENUMTYPE##T_ENUMCLASS>(lhs) | static_cast<T_ENUMTYPE##T_ENUMCLASS>(rhs));\
 }\
 inline T_ENUMCLASS& operator |= (T_ENUMCLASS& lhs, T_ENUMCLASS rhs)\
 {\
-	lhs = (T_ENUMCLASS)(static_cast<T_ENUMTYPE##T_ENUMCLASS>(lhs) | static_cast<T_ENUMTYPE##T_ENUMCLASS>(rhs));\
-	return lhs;\
+    lhs = (T_ENUMCLASS)(static_cast<T_ENUMTYPE##T_ENUMCLASS>(lhs) | static_cast<T_ENUMTYPE##T_ENUMCLASS>(rhs));\
+    return lhs;\
 }\
 inline T_ENUMCLASS operator & (T_ENUMCLASS lhs, T_ENUMCLASS rhs)\
 {\
-	return (T_ENUMCLASS)(static_cast<T_ENUMTYPE##T_ENUMCLASS>(lhs) & static_cast<T_ENUMTYPE##T_ENUMCLASS>(rhs));\
+    return (T_ENUMCLASS)(static_cast<T_ENUMTYPE##T_ENUMCLASS>(lhs) & static_cast<T_ENUMTYPE##T_ENUMCLASS>(rhs));\
 }\
 inline T_ENUMCLASS& operator &= (T_ENUMCLASS& lhs, T_ENUMCLASS rhs)\
 {\
-	lhs = (T_ENUMCLASS)(static_cast<T_ENUMTYPE##T_ENUMCLASS>(lhs) & static_cast<T_ENUMTYPE##T_ENUMCLASS>(rhs));\
-	return lhs;\
+    lhs = (T_ENUMCLASS)(static_cast<T_ENUMTYPE##T_ENUMCLASS>(lhs) & static_cast<T_ENUMTYPE##T_ENUMCLASS>(rhs));\
+    return lhs;\
 }\
 inline T_ENUMCLASS operator ^ (T_ENUMCLASS lhs, T_ENUMCLASS rhs)\
 {\
-	return (T_ENUMCLASS)(static_cast<T_ENUMTYPE##T_ENUMCLASS>(lhs) ^ static_cast<T_ENUMTYPE##T_ENUMCLASS>(rhs));\
+    return (T_ENUMCLASS)(static_cast<T_ENUMTYPE##T_ENUMCLASS>(lhs) ^ static_cast<T_ENUMTYPE##T_ENUMCLASS>(rhs));\
 }\
 inline T_ENUMCLASS& operator ^= (T_ENUMCLASS& lhs, T_ENUMCLASS rhs)\
 {\
-	lhs = (T_ENUMCLASS)(static_cast<T_ENUMTYPE##T_ENUMCLASS>(lhs) ^ static_cast<T_ENUMTYPE##T_ENUMCLASS>(rhs));\
-	return lhs;\
+    lhs = (T_ENUMCLASS)(static_cast<T_ENUMTYPE##T_ENUMCLASS>(lhs) ^ static_cast<T_ENUMTYPE##T_ENUMCLASS>(rhs));\
+    return lhs;\
 }\
 inline T_ENUMCLASS operator ~ (T_ENUMCLASS lhs)\
 {\
-	return (T_ENUMCLASS)(~static_cast<T_ENUMTYPE##T_ENUMCLASS>(lhs));\
+    return (T_ENUMCLASS)(~static_cast<T_ENUMTYPE##T_ENUMCLASS>(lhs));\
 }
 
 template<class... T> void unused(T&&...)

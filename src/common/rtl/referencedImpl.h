@@ -5,36 +5,35 @@
 //#if __cplusplus <= 199711L
     //such a check should work, yet it does not with MS
 #if _MSC_VER > 1600L
-  #define cpp0x
+    #define cpp0x
 #else
-  #include <Windows.h>
+    #include <Windows.h>
 #endif
-
 
 #ifdef cpp0x
-	#include <atomic>
-#endif
-
-
-class CReferenced : public virtual IReferenced {    
-protected:
-#ifdef cpp0x
-	std::atomic<ULONG> mCounter;
+    #include <atomic>
+    typedef std::atomic<ULONG> refcounter_t;
 #else
-    ULONG mCounter;
+    typedef ULONG refcounter_t;
 #endif
-public:
-	CReferenced() : mCounter(0) {};
-	virtual ~CReferenced() {};
 
-	virtual HRESULT IfaceCalling QueryInterface(/*REFIID */ void*  riid, void ** ppvObj);
-	virtual ULONG IfaceCalling AddRef();
-	virtual ULONG IfaceCalling Release();
+class CReferenced : public virtual IReferenced
+{
+    public:
+        CReferenced() : mCounter(0) {};
+        virtual ~CReferenced() {};
+
+        virtual HRESULT IfaceCalling QueryInterface(/*REFIID */ void*  riid, void ** ppvObj);
+        virtual ULONG IfaceCalling AddRef();
+        virtual ULONG IfaceCalling Release();
+
+    protected:
+        refcounter_t mCounter;
 };
 
-
-class CNotReferenced : public CReferenced {
-public:
-	virtual ULONG IfaceCalling AddRef();
-	virtual ULONG IfaceCalling Release();
+class CNotReferenced : public CReferenced
+{
+    public:
+        virtual ULONG IfaceCalling AddRef();
+        virtual ULONG IfaceCalling Release();
 };
