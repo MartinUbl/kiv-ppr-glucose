@@ -1,0 +1,67 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="src">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="src\common">
+      <UniqueIdentifier>{8ae196ef-48da-4f5e-9e37-f8df70905d84}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\approx">
+      <UniqueIdentifier>{9939ca8e-6a3f-4aed-8bb0-21f96b06e074}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\approx\src">
+      <UniqueIdentifier>{46a2d00e-2b7d-41c6-9bb4-14a47f645d0f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\common\iface">
+      <UniqueIdentifier>{d38c357a-0dc6-4fd9-9fe0-fa5686a5957e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\common\rtl">
+      <UniqueIdentifier>{d5c1b923-485e-449f-bd2e-bc09c7bc3219}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\cli">
+      <UniqueIdentifier>{637940ba-a43c-45cf-89a9-bb87b51a75b7}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\src\approx\src\CommonApprox.cpp">
+      <Filter>src\approx\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\approx\src\GlucoseLevels.cpp">
+      <Filter>src\approx\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\common\iface\ApproxIface.cpp">
+      <Filter>src\common\iface</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\common\rtl\referencedImpl.cpp">
+      <Filter>src\common\rtl</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\cli\main.cpp">
+      <Filter>src\cli</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\src\approx\src\CommonApprox.h">
+      <Filter>src\approx\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\approx\src\GlucoseLevels.h">
+      <Filter>src\approx\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\common\iface\ApproxIface.h">
+      <Filter>src\common\iface</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\common\iface\referencedIface.h">
+      <Filter>src\common\iface</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\common\rtl\cfixes.h">
+      <Filter>src\common\rtl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\common\rtl\hresult.h">
+      <Filter>src\common\rtl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\common\rtl\referencedImpl.h">
+      <Filter>src\common\rtl</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>
