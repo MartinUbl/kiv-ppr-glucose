@@ -23,6 +23,9 @@
     <Filter Include="src\cli">
       <UniqueIdentifier>{637940ba-a43c-45cf-89a9-bb87b51a75b7}</UniqueIdentifier>
     </Filter>
+    <Filter Include="src\loaders">
+      <UniqueIdentifier>{76c41de3-687a-4ca3-a382-2ab381de9b94}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\approx\src\CommonApprox.cpp">
@@ -39,6 +42,12 @@
     </ClCompile>
     <ClCompile Include="..\..\src\cli\main.cpp">
       <Filter>src\cli</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\loaders\SQLiteLoader.cpp">
+      <Filter>src\loaders</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\loaders\Conversion.cpp">
+      <Filter>src\loaders</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -62,6 +71,15 @@
     </ClInclude>
     <ClInclude Include="..\..\src\common\rtl\referencedImpl.h">
       <Filter>src\common\rtl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\loaders\LoaderIface.h">
+      <Filter>src\loaders</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\loaders\SQLiteLoader.h">
+      <Filter>src\loaders</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\loaders\Conversion.h">
+      <Filter>src\loaders</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

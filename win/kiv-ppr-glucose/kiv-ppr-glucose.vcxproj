@@ -124,6 +124,8 @@
     <ClCompile Include="..\..\src\cli\main.cpp" />
     <ClCompile Include="..\..\src\common\iface\ApproxIface.cpp" />
     <ClCompile Include="..\..\src\common\rtl\referencedImpl.cpp" />
+    <ClCompile Include="..\..\src\loaders\Conversion.cpp" />
+    <ClCompile Include="..\..\src\loaders\SQLiteLoader.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\approx\src\CommonApprox.h" />
@@ -133,6 +135,9 @@
     <ClInclude Include="..\..\src\common\rtl\cfixes.h" />
     <ClInclude Include="..\..\src\common\rtl\hresult.h" />
     <ClInclude Include="..\..\src\common\rtl\referencedImpl.h" />
+    <ClInclude Include="..\..\src\loaders\Conversion.h" />
+    <ClInclude Include="..\..\src\loaders\LoaderIface.h" />
+    <ClInclude Include="..\..\src\loaders\SQLiteLoader.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
