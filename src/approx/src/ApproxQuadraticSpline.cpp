@@ -18,7 +18,7 @@ HRESULT IfaceCalling ApproxQuadraticSpline::Approximate(TApproximationParams *pa
     mEnumeratedLevels->GetLevels(&values);
 
     // calculate parameters for all mask
-    for (mask = 0; mask < APPROX_MASK_COUNT; mask++)
+    for (mask = 1; mask < APPROX_MASK_COUNT; mask++)
     {
         // resize value vectors, we know how much values do we need
         aCoefs[mask].resize(valueCount - 1);
@@ -135,18 +135,17 @@ void ApproxQuadraticSpline::GetOffsetsForMask(const uint32_t mask, size_t* offse
 {
     size_t i, j;
 
-    // initial state is: 0, 1, 2, 3, 4, 5, 6, 7 - this applies to full mask
-    for (i = 0; i < 8; i++)
-        offsets[i] = i;
-
-    for (i = 0; i < 8; i++)
+    i = 0;
+    j = 0;
+    while (i < 8)
     {
-        // for each 0 bit in mask we shift current and following offsets by one
-        if (((1 << i) & mask) == 0)
+        if (((1 << (j % 8)) & mask) != 0)
         {
-            for (j = i; j < 8; j++)
-                offsets[j]++;
+            offsets[i] = j;
+            i++;
         }
+
+        j++;
     }
 }
 
