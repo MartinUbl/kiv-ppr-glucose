@@ -7,9 +7,10 @@ HRESULT IfaceCalling ApproxQuadraticSpline::Approximate(TApproximationParams *pa
     // shifting base for mask-based calculation
     size_t base;
     // offsets of shifted values (used for fast lookup)
-    size_t offsets[8];
+    size_t offsets[9];
 
     size_t i;
+    size_t j;
     uint32_t mask;
 
     // cache count and values pointer
@@ -27,6 +28,9 @@ HRESULT IfaceCalling ApproxQuadraticSpline::Approximate(TApproximationParams *pa
         // calculate offsets
         GetOffsetsForMask(mask, offsets);
 
+        // shifted base for generic calculation
+        offsets[8] = offsets[0] + 8;
+
         base = 0;
 
         // initial condition for quadratic spline
@@ -34,15 +38,21 @@ HRESULT IfaceCalling ApproxQuadraticSpline::Approximate(TApproximationParams *pa
         bCoefs[mask][0] = (values[offsets[1]].level - values[offsets[0]].level) / (values[offsets[1]].datetime - values[offsets[0]].datetime);
         cCoefs[mask][0] = values[offsets[0]].level - bCoefs[mask][0] * values[offsets[0]].datetime;
 
-        for (i = 1; i < valueCount - 1; i++)
+        j = 1;
+        for (i = 1; i < valueCount - 1; i++, j++)
         {
-            if (base + offsets[i] > valueCount || base + offsets[i + 1] > valueCount)
+            if (j == 8)
+            {
+                j = 0;
+                base += 8;
+            }
+
+            if (base + offsets[j] > valueCount || base + offsets[j + 1] > valueCount)
                 break;
 
-            CalculateCoefsFor(mask, i, aCoefs[mask][i - 1], bCoefs[mask][i - 1], values[base + offsets[i]].datetime, values[base + offsets[i + 1]].datetime, values[base + offsets[i]].level, values[base + offsets[i + 1]].level);
-
-            if (i % 8 == 0)
-                base += 8;
+            CalculateCoefsFor(mask, i, aCoefs[mask][i - 1], bCoefs[mask][i - 1],
+                values[base + offsets[j]].datetime, values[base + offsets[j + 1]].datetime,
+                values[base + offsets[j]].level, values[base + offsets[j + 1]].level);
         }
     }
 
@@ -66,24 +76,23 @@ HRESULT IfaceCalling ApproxQuadraticSpline::GetLevels(floattype desiredtime, flo
     // shifting base for mask-based calculation
     size_t base;
     // offsets of shifted values (used for fast lookup)
-    size_t offsets[8];
-    size_t i;
+    size_t offsets[9];
+    size_t i, j;
 
     // calculate offsets
     GetOffsetsForMask(mask, offsets);
 
+    offsets[8] = offsets[0] + 8;
+
     base = 0;
 
     i = 0;
+    j = 0;
     floattype curtime = desiredtime;
 
     // fill the array
     for (; i < count; i++)
     {
-        // it is time to move to next index (next curve, next coefficients)
-        if (index < 7 && curtime > values[base + offsets[index + 1]].datetime)
-            index++;
-
         // we want more than we have
         if (index >= valueCount)
             break;
@@ -98,9 +107,16 @@ HRESULT IfaceCalling ApproxQuadraticSpline::GetLevels(floattype desiredtime, flo
         // move to next time
         curtime += stepping;
 
-        // move base if needed (this is needed for mask-based calculation)
-        if (index % 8 == 0 && index != 0)
-            base += 8;
+        // it is time to move to next index (next curve, next coefficients)
+        if (curtime > values[base + offsets[j + 1]].datetime)
+        {
+            index++;
+            // move base if needed (this is needed for mask-based calculation)
+            if (index % 8 == 0 && index != 0)
+                base += 8;
+
+            j = (j + 1) % 8;
+        }
     }
 
     *filled = i - 1;
