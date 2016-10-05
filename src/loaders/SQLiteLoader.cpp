@@ -62,7 +62,7 @@ HRESULT SQLiteLoader::LoadGlucoseLevels(std::vector<CGlucoseLevels*> &target)
     {
         // we acquire julianday, convert it to unix timestamp in milliseconds for further conversion to rational time
 
-        sql = std::string("SELECT (JULIANDAY(measuredat) - 2440587.5) * 86400000.0, ist FROM measuredvalue WHERE ist IS NOT NULL AND segmentid = ") + std::to_string(segmentId) + ";";
+        sql = std::string("SELECT (JULIANDAY(measuredat) - 2440587.5) * 86400000.0 AS time, ist FROM measuredvalue WHERE ist IS NOT NULL AND segmentid = ") + std::to_string(segmentId) + " ORDER BY time ASC;";
         res = sqlite3_get_table(db, sql.c_str(), &results, &rows, &columns, &error);
         if (res != 0)
         {
