@@ -6,7 +6,7 @@ HRESULT IfaceCalling ApproxQuadraticSpline::Approximate(TApproximationParams *pa
 {
     // shifting base for mask-based calculation
     size_t base;
-    // offsets of shifted values (used for fast lookup)
+    // offsets of shifted values (used for fast lookup) (one extra to avoid division by 8 in loop)
     size_t offsets[9];
 
     size_t i;
@@ -28,9 +28,6 @@ HRESULT IfaceCalling ApproxQuadraticSpline::Approximate(TApproximationParams *pa
         // calculate offsets
         GetOffsetsForMask(mask, offsets);
 
-        // shifted base for generic calculation
-        offsets[8] = offsets[0] + 8;
-
         base = 0;
 
         // initial condition for quadratic spline
@@ -43,8 +40,8 @@ HRESULT IfaceCalling ApproxQuadraticSpline::Approximate(TApproximationParams *pa
         {
             if (j == 8)
             {
+                base += offsets[j] - offsets[0];
                 j = 0;
-                base += 8;
             }
 
             if (base + offsets[j] > valueCount || base + offsets[j + 1] > valueCount)
@@ -75,14 +72,12 @@ HRESULT IfaceCalling ApproxQuadraticSpline::GetLevels(floattype desiredtime, flo
 
     // shifting base for mask-based calculation
     size_t base;
-    // offsets of shifted values (used for fast lookup)
+    // offsets of shifted values (used for fast lookup) (one extra to avoid division by 8 in loop)
     size_t offsets[9];
     size_t i, j;
 
     // calculate offsets
     GetOffsetsForMask(mask, offsets);
-
-    offsets[8] = offsets[0] + 8;
 
     base = 0;
 
@@ -113,7 +108,7 @@ HRESULT IfaceCalling ApproxQuadraticSpline::GetLevels(floattype desiredtime, flo
             index++;
             // move base if needed (this is needed for mask-based calculation)
             if (index % 8 == 0 && index != 0)
-                base += 8;
+                base += offsets[j + 1] - offsets[0];
 
             j = (j + 1) % 8;
         }
@@ -137,9 +132,11 @@ void ApproxQuadraticSpline::GetOffsetsForMask(const uint32_t mask, size_t* offse
 
     i = 0;
     j = 0;
-    while (i < 8)
+    // calculate one extra offset to avoid division in main loop
+    while (i < 9)
     {
-        if (((1 << (j % 8)) & mask) != 0)
+        // inverse the mask, so it matches the group in "the right direction" (MSB = 0. value, LSB = 7. value within group)
+        if (((1 << (7 - (j % 8))) & mask) != 0)
         {
             offsets[i] = j;
             i++;
