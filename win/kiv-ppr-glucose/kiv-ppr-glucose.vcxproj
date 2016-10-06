@@ -123,6 +123,7 @@
     <ClCompile Include="..\..\src\approx\src\CommonApprox.cpp" />
     <ClCompile Include="..\..\src\approx\src\GlucoseLevels.cpp" />
     <ClCompile Include="..\..\src\cli\main.cpp" />
+    <ClCompile Include="..\..\src\cli\TestOutput.cpp" />
     <ClCompile Include="..\..\src\common\iface\ApproxIface.cpp" />
     <ClCompile Include="..\..\src\common\rtl\referencedImpl.cpp" />
     <ClCompile Include="..\..\src\loaders\Conversion.cpp" />
@@ -132,6 +133,7 @@
     <ClInclude Include="..\..\src\approx\src\ApproxQuadraticSpline.h" />
     <ClInclude Include="..\..\src\approx\src\CommonApprox.h" />
     <ClInclude Include="..\..\src\approx\src\GlucoseLevels.h" />
+    <ClInclude Include="..\..\src\cli\TestOutput.h" />
     <ClInclude Include="..\..\src\common\iface\ApproxIface.h" />
     <ClInclude Include="..\..\src\common\iface\referencedIface.h" />
     <ClInclude Include="..\..\src\common\rtl\cfixes.h" />

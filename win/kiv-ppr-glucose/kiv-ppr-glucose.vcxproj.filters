@@ -52,6 +52,9 @@
     <ClCompile Include="..\..\src\approx\src\ApproxQuadraticSpline.cpp">
       <Filter>src\approx\src</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\cli\TestOutput.cpp">
+      <Filter>src\cli</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\approx\src\CommonApprox.h">
@@ -86,6 +89,9 @@
     </ClInclude>
     <ClInclude Include="..\..\src\approx\src\ApproxQuadraticSpline.h">
       <Filter>src\approx\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\cli\TestOutput.h">
+      <Filter>src\cli</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
