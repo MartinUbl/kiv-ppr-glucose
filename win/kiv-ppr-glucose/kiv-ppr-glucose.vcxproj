@@ -119,6 +119,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\src\approx\src\ApproxAkimaSpline.cpp" />
     <ClCompile Include="..\..\src\approx\src\ApproxQuadraticSpline.cpp" />
     <ClCompile Include="..\..\src\approx\src\CommonApprox.cpp" />
     <ClCompile Include="..\..\src\approx\src\GlucoseLevels.cpp" />
@@ -130,6 +131,7 @@
     <ClCompile Include="..\..\src\loaders\SQLiteLoader.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\src\approx\src\ApproxAkimaSpline.h" />
     <ClInclude Include="..\..\src\approx\src\ApproxQuadraticSpline.h" />
     <ClInclude Include="..\..\src\approx\src\CommonApprox.h" />
     <ClInclude Include="..\..\src\approx\src\GlucoseLevels.h" />

@@ -4,6 +4,7 @@
 #include "../approx/src/GlucoseLevels.h"
 #include "../loaders/SQLiteLoader.h"
 #include "../approx/src/ApproxQuadraticSpline.h"
+#include "../approx/src/ApproxAkimaSpline.h"
 
 #include "TestOutput.h"
 
@@ -46,7 +47,8 @@ int main(int argc, char** argv)
     std::cout << std::setprecision(20);
 
     // approximate!
-    ApproxQuadraticSpline apx(vec[0]);
+    //ApproxQuadraticSpline apx(vec[0]);
+    ApproxAkimaSpline apx(vec[0]);
     apx.Approximate(nullptr);
 
     // some testing values for output
