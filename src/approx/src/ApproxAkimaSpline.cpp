@@ -102,12 +102,37 @@ HRESULT IfaceCalling ApproxAkimaSpline::Approximate(TApproximationParams *params
             {
                 const floattype deltax = values[base + offsets[j + 1]].datetime - values[base + offsets[j]].datetime;
 
-                // TODO: weighting coefficients!
+                tmpWeight1 = fabs(m[i + 1] - m[i]);     // w_i+1
+                tmpWeight2 = fabs(m[i - 1] - m[i - 2]); // w_i-1
+
+                floattype wsum = tmpWeight1 + tmpWeight2;
+
+                if (wsum == 0)
+                {
+                    tmpWeight1 = 1.0;
+                    tmpWeight2 = 1.0;
+                    wsum = 2.0;
+                }
 
                 a0Coefs[mask][i] = values[base + offsets[j]].level;
-                a1Coefs[mask][i] = m[i];
-                a2Coefs[mask][i] = (3 * m[i] - 2 * a1Coefs[mask][i] - m[i + 1]) / deltax;
-                a3Coefs[mask][i] = (a1Coefs[mask][i] + m[i + 1] - 2 * m[i]) / (deltax * deltax);
+                a1Coefs[mask][i] = (tmpWeight1 * m[i - 1] + tmpWeight2 * m[i]) / wsum;
+
+                tmpWeight1 = fabs(m[i + 1 + 1] - m[i + 1]);     // w_i+1
+                tmpWeight2 = fabs(m[i - 1 + 1] - m[i - 2 + 1]); // w_i-1
+
+                wsum = tmpWeight1 + tmpWeight2;
+
+                if (wsum == 0)
+                {
+                    tmpWeight1 = 1.0;
+                    tmpWeight2 = 1.0;
+                    wsum = 2.0;
+                }
+
+                const floattype nextA1 = (tmpWeight1 * m[i - 1 + 1] + tmpWeight2 * m[i + 1]) / wsum;
+
+                a2Coefs[mask][i] = (3 * m[i] - 2 * a1Coefs[mask][i] - nextA1) / deltax;
+                a3Coefs[mask][i] = (a1Coefs[mask][i] + nextA1 - 2 * m[i]) / (deltax * deltax);
             }
         }
     }
