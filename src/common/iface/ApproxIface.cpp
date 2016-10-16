@@ -15,6 +15,8 @@ const floattype OneSecond = 1.0 / (24.0*60.0*60.0);
 
 const size_t apxmAverageExponential = 1;
 const size_t apxmAverageLine = 2;
+const size_t apxmQuadraticSpline = 3;
+const size_t apxmAkimaSpline = 4;
 
 const size_t apxNoDerivation = 0;
 const size_t apxFirstOrderDerivation = 1;

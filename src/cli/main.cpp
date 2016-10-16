@@ -5,6 +5,7 @@
 #include "../loaders/SQLiteLoader.h"
 #include "../approx/src/ApproxQuadraticSpline.h"
 #include "../approx/src/ApproxAkimaSpline.h"
+#include "appconfig.h"
 
 #include "TestOutput.h"
 
@@ -28,6 +29,15 @@ int main(int argc, char** argv)
 {
     // TODO
 
+    // TODO: load approx method from command line parameters
+    appApproxMethod = apxmQuadraticSpline;
+
+    // TODO: load concurrency type from command line parameters
+    appConcurrency = ConcurrencyType::ct_serial;
+
+    // TODO: load worker count from command line parameters
+    appWorkerCount = 4;
+
     // Load parameters - fow now use just SQLite loader
     SQLiteLoader ldr;
     HRESULT res = ldr.InitLoader({
@@ -44,29 +54,47 @@ int main(int argc, char** argv)
     floattype reducedBy = reduceLevels(vec[0]);
     const floattype timestart = 0.0;
 
-    std::cout << std::setprecision(20);
+    clock_t tmStart = clock();
 
-    // approximate!
-    //ApproxQuadraticSpline apx(vec[0]);
-    ApproxAkimaSpline apx(vec[0]);
-    apx.Approximate(nullptr);
+    std::cout << "Processing " << vec.size() << " segments..." << std::endl;
+    for (size_t i = 0; i < vec.size(); i++)
+    {
+        std::cout << "Processing segment " << (i+1) << " / " << vec.size() << "..." << std::endl;
 
-    // some testing values for output
-    size_t levcount = 768;
-    size_t filled;
-    floattype* levels = new floattype[levcount];
+        CCommonApprox* apx;
+        // approximate!
+        if (appApproxMethod == apxmQuadraticSpline)
+            apx = new ApproxQuadraticSpline(vec[i]);
+        else if (appApproxMethod == apxmAkimaSpline)
+            apx = new ApproxAkimaSpline(vec[i]);
+        else
+            break;
 
-    const floattype granularity = 16.0;
-    const floattype step = 5.0 / (24.0*60.0*granularity);
+        apx->Approximate(nullptr);
 
-    // retrieve approximated levels
-    apx.GetLevels(timestart, step, levcount, levels, &filled, 0);
+        // some testing values for output
+        size_t levcount = 768;
+        size_t filled;
+        floattype* levels = new floattype[levcount];
 
-    TGlucoseLevel* levs;
-    vec[0]->GetLevels(&levs);
+        const floattype granularity = 16.0;
+        const floattype step = 5.0 / (24.0*60.0*granularity);
 
-    // visualize to some easy format, SVG should be nice
-    VisualizeSVG("test.svg", timestart, step, levcount, levels, levs, true);
+        // retrieve approximated levels
+        apx->GetLevels(timestart, step, levcount, levels, &filled, 0);
+
+        //TGlucoseLevel* levs;
+        //vec[i]->GetLevels(&levs);
+
+        // visualize to some easy format, SVG should be nice
+        //VisualizeSVG("test.svg", timestart, step, levcount, levels, levs, true);
+
+        delete apx;
+    }
+
+    clock_t tmTotal = (clock_t)(1000.0f * (float)(clock() - tmStart) / (float)CLOCKS_PER_SEC);
+
+    std::cout << "Done. Elapsed: " << tmTotal << "ms" << std::endl;
 
     ldr.Finalize();
 

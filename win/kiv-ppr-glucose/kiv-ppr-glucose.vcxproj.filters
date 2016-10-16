@@ -99,5 +99,8 @@
     <ClInclude Include="..\..\src\approx\src\ApproxAkimaSpline.h">
       <Filter>src\approx\src</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\src\cli\appconfig.h">
+      <Filter>src\cli</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

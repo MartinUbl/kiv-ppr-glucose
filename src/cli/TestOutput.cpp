@@ -15,6 +15,8 @@ void VisualizeSVG(const char* filename, floattype starttime, floattype step, siz
 
         ofs << "<svg xmlns=\"http://www.w3.org/2000/svg\" stroke-width=\"1\">" << std::endl;
         ofs << std::setprecision(20);
+        if (consoleout)
+            std::cout << std::setprecision(20);
 
         floattype base = levs[0].datetime * stretchCoefX;
 

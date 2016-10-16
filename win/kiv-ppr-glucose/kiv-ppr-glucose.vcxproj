@@ -135,6 +135,7 @@
     <ClInclude Include="..\..\src\approx\src\ApproxQuadraticSpline.h" />
     <ClInclude Include="..\..\src\approx\src\CommonApprox.h" />
     <ClInclude Include="..\..\src\approx\src\GlucoseLevels.h" />
+    <ClInclude Include="..\..\src\cli\appconfig.h" />
     <ClInclude Include="..\..\src\cli\TestOutput.h" />
     <ClInclude Include="..\..\src\common\iface\ApproxIface.h" />
     <ClInclude Include="..\..\src\common\iface\referencedIface.h" />
