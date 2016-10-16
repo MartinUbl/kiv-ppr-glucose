@@ -22,6 +22,10 @@ class ApproxQuadraticSpline : public CCommonApprox
 
     protected:
 
+        void CalculateParametersForMask(const uint32_t mask);
+
+        void CalculateParameters_AMP();
+
         // calculates coefficients for one specific index in one specific mask
         inline void CalculateCoefsFor(const uint32_t mask, size_t index, floattype aPrev, floattype bPrev, floattype xCur, floattype xNext, floattype yCur, floattype yNext);
 

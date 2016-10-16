@@ -9,6 +9,13 @@
 
 #include "TestOutput.h"
 
+// concurrency used for calculations
+ConcurrencyType appConcurrency = ConcurrencyType::ct_serial;
+// selected approximation method
+size_t appApproxMethod = 0;
+// worker count (if the method needs it)
+size_t appWorkerCount = 1;
+
 // reduces all times by minimum of all times - causes less precision loss
 static floattype reduceLevels(CGlucoseLevels* lvls)
 {
@@ -33,7 +40,7 @@ int main(int argc, char** argv)
     appApproxMethod = apxmQuadraticSpline;
 
     // TODO: load concurrency type from command line parameters
-    appConcurrency = ConcurrencyType::ct_serial;
+    appConcurrency = ConcurrencyType::ct_parallel_threads;
 
     // TODO: load worker count from command line parameters
     appWorkerCount = 4;
@@ -50,8 +57,6 @@ int main(int argc, char** argv)
     std::vector<CGlucoseLevels*> vec;
     res = ldr.LoadGlucoseLevels(vec);
 
-    // reduce times to not lose precision so rapidly
-    floattype reducedBy = reduceLevels(vec[0]);
     const floattype timestart = 0.0;
 
     clock_t tmStart = clock();
@@ -60,6 +65,9 @@ int main(int argc, char** argv)
     for (size_t i = 0; i < vec.size(); i++)
     {
         std::cout << "Processing segment " << (i+1) << " / " << vec.size() << "..." << std::endl;
+
+        // reduce times to not lose precision so rapidly
+        floattype reducedBy = reduceLevels(vec[i]);
 
         CCommonApprox* apx;
         // approximate!
@@ -83,11 +91,16 @@ int main(int argc, char** argv)
         // retrieve approximated levels
         apx->GetLevels(timestart, step, levcount, levels, &filled, 0);
 
-        //TGlucoseLevel* levs;
-        //vec[i]->GetLevels(&levs);
+        /*
+        if (i == 0)
+        {
+            TGlucoseLevel* levs;
+            vec[i]->GetLevels(&levs);
 
-        // visualize to some easy format, SVG should be nice
-        //VisualizeSVG("test.svg", timestart, step, levcount, levels, levs, true);
+            // visualize to some easy format, SVG should be nice
+            VisualizeSVG("test.svg", timestart, step, levcount, levels, levs, false);
+        }
+        */
 
         delete apx;
     }

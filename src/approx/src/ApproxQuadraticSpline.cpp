@@ -1,8 +1,14 @@
 #include "ApproxQuadraticSpline.h"
 
+#include "../../cli/appconfig.h"
+#include <amp.h>
+#include <atomic>
 #include <iostream>
 
-HRESULT IfaceCalling ApproxQuadraticSpline::Approximate(TApproximationParams *params)
+// safe, no name conflict
+using namespace concurrency;
+
+void ApproxQuadraticSpline::CalculateParametersForMask(const uint32_t mask)
 {
     // shifting base for mask-based calculation
     size_t base;
@@ -11,46 +17,88 @@ HRESULT IfaceCalling ApproxQuadraticSpline::Approximate(TApproximationParams *pa
 
     size_t i;
     size_t j;
+
+    // resize value vectors, we know how much values do we need
+    aCoefs[mask].resize(valueCount - 1);
+    bCoefs[mask].resize(valueCount - 1);
+    cCoefs[mask].resize(valueCount - 1);
+
+    // calculate offsets
+    GetOffsetsForMask(mask, offsets);
+
+    base = 0;
+
+    // initial condition for quadratic spline
+    aCoefs[mask][0] = 0;
+    bCoefs[mask][0] = (values[offsets[1]].level - values[offsets[0]].level) / (values[offsets[1]].datetime - values[offsets[0]].datetime);
+    cCoefs[mask][0] = values[offsets[0]].level - bCoefs[mask][0] * values[offsets[0]].datetime;
+
+    j = 1;
+    for (i = 1; i < valueCount - 1; i++, j++)
+    {
+        if (j == 8)
+        {
+            base += offsets[j] - offsets[0];
+            j = 0;
+        }
+
+        if (base + offsets[j] > valueCount || base + offsets[j + 1] > valueCount)
+            break;
+
+        CalculateCoefsFor(mask, i, aCoefs[mask][i - 1], bCoefs[mask][i - 1],
+            values[base + offsets[j]].datetime, values[base + offsets[j + 1]].datetime,
+            values[base + offsets[j]].level, values[base + offsets[j + 1]].level);
+    }
+}
+
+void ApproxQuadraticSpline::CalculateParameters_AMP()
+{
+    // TODO
+}
+
+HRESULT IfaceCalling ApproxQuadraticSpline::Approximate(TApproximationParams *params)
+{
     uint32_t mask;
+    std::atomic<uint32_t> atMask;
+    size_t i;
 
     // cache count and values pointer
     mEnumeratedLevels->GetLevelsCount(&valueCount);
     mEnumeratedLevels->GetLevels(&values);
 
-    // calculate parameters for all mask
-    for (mask = 1; mask < APPROX_MASK_COUNT; mask++)
+    if (appConcurrency == ConcurrencyType::ct_serial)
     {
-        // resize value vectors, we know how much values do we need
-        aCoefs[mask].resize(valueCount - 1);
-        bCoefs[mask].resize(valueCount - 1);
-        cCoefs[mask].resize(valueCount - 1);
+        for (mask = 1; mask < APPROX_MASK_COUNT; mask++)
+            CalculateParametersForMask(mask);
+    }
+    else if (appConcurrency == ConcurrencyType::ct_parallel_threads)
+    {
+        atMask = 1;
 
-        // calculate offsets
-        GetOffsetsForMask(mask, offsets);
+        std::thread** workers = new std::thread*[appWorkerCount];
 
-        base = 0;
-
-        // initial condition for quadratic spline
-        aCoefs[mask][0] = 0;
-        bCoefs[mask][0] = (values[offsets[1]].level - values[offsets[0]].level) / (values[offsets[1]].datetime - values[offsets[0]].datetime);
-        cCoefs[mask][0] = values[offsets[0]].level - bCoefs[mask][0] * values[offsets[0]].datetime;
-
-        j = 1;
-        for (i = 1; i < valueCount - 1; i++, j++)
+        for (i = 0; i < appWorkerCount; i++)
         {
-            if (j == 8)
-            {
-                base += offsets[j] - offsets[0];
-                j = 0;
-            }
-
-            if (base + offsets[j] > valueCount || base + offsets[j + 1] > valueCount)
-                break;
-
-            CalculateCoefsFor(mask, i, aCoefs[mask][i - 1], bCoefs[mask][i - 1],
-                values[base + offsets[j]].datetime, values[base + offsets[j + 1]].datetime,
-                values[base + offsets[j]].level, values[base + offsets[j + 1]].level);
+            workers[i] = new std::thread([&atMask](ApproxQuadraticSpline* obj) {
+                uint32_t myMask;
+                while ((myMask = atMask++) < APPROX_MASK_COUNT)
+                    obj->CalculateParametersForMask(myMask);
+            }, this);
         }
+
+        for (i = 0; i < appWorkerCount; i++)
+        {
+            if (workers[i]->joinable())
+                workers[i]->join();
+
+            delete workers[i];
+        }
+
+        delete workers;
+    }
+    else if (appConcurrency == ConcurrencyType::ct_parallel_amp)
+    {
+        CalculateParameters_AMP();
     }
 
     return S_OK;
