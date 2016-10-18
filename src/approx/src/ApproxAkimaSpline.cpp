@@ -187,8 +187,8 @@ void ApproxAkimaSpline::CalculateParametersForMask_threads(const uint32_t mask, 
             size_t myWork, base, j;
             while ((myWork = thrWork++) < obj->valueCount - 1)
             {
-                base = 8*floor(myWork / 8);
                 j = myWork % 8;
+                base = myWork - j;
 
                 if (base + offsets[j] > obj->valueCount || base + offsets[j + 1] > obj->valueCount)
                     break;
@@ -224,8 +224,8 @@ void ApproxAkimaSpline::CalculateParametersForMask_threads(const uint32_t mask, 
             floattype tmpWeight1, tmpWeight2;
             while ((myWork = thrWork++) < obj->valueCount - 1)
             {
-                base = 8*floor(myWork / 8);
                 j = myWork % 8;
+                base = myWork - j;
 
                 if (base + offsets[j] > obj->valueCount || base + offsets[j + 1] > obj->valueCount)
                     break;
