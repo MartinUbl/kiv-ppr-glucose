@@ -3,6 +3,7 @@
 #include "CommonApprox.h"
 
 #include <vector>
+#include <thread>
 
 #define APPROX_MASK_COUNT 0x100
 
@@ -21,6 +22,12 @@ class ApproxAkimaSpline : public CCommonApprox
                                        floattype *levels, size_t *filled, size_t derivationorder);
 
     protected:
+
+        void CalculateParametersForMask(const uint32_t mask);
+
+        void CalculateParametersForMask_threads(const uint32_t mask, std::thread** workers);
+
+        void CalculateParametersForMask_AMP(const uint32_t mask);
 
         // retrieves shift offsets for mask-based calculations
         inline void GetOffsetsForMask(const uint32_t mask, size_t* offsets);
