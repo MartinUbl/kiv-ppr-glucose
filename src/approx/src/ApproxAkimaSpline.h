@@ -25,9 +25,9 @@ class ApproxAkimaSpline : public CCommonApprox
 
         void CalculateParametersForMask(const uint32_t mask);
 
-        void CalculateParametersForMask_threads(const uint32_t mask, std::thread** workers);
+        void CalculateParameters_threads();
 
-        void CalculateParametersForMask_AMP(const uint32_t mask);
+        void CalculateParameters_AMP();
 
         // retrieves shift offsets for mask-based calculations
         inline void GetOffsetsForMask(const uint32_t mask, size_t* offsets);
