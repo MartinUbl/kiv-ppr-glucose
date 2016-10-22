@@ -4,7 +4,8 @@ enum class ConcurrencyType
 {
     ct_serial,                  // no parallelization at all
     ct_parallel_threads,        // use C++ std::thread
-    ct_parallel_amp,            // use C++AMP
+    ct_parallel_amp_gpu,        // use C++AMP on GPU
+    ct_parallel_tbb,            // use Intel Threading Building Blocks (TBB)
 };
 
 // concurrency used for calculations

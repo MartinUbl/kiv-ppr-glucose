@@ -96,7 +96,7 @@ HRESULT IfaceCalling ApproxQuadraticSpline::Approximate(TApproximationParams *pa
 
         delete workers;
     }
-    else if (appConcurrency == ConcurrencyType::ct_parallel_amp)
+    else if (appConcurrency == ConcurrencyType::ct_parallel_amp_gpu)
     {
         CalculateParameters_AMP();
     }
