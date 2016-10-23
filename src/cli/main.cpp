@@ -37,10 +37,10 @@ int main(int argc, char** argv)
     // TODO
 
     // TODO: load approx method from command line parameters
-    appApproxMethod = apxmAkimaSpline;
+    appApproxMethod = apxmQuadraticSpline;
 
     // TODO: load concurrency type from command line parameters
-    appConcurrency = ConcurrencyType::ct_parallel_threads;
+    appConcurrency = ConcurrencyType::ct_parallel_tbb;
 
     // TODO: load worker count from command line parameters
     appWorkerCount = 4;

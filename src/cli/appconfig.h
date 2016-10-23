@@ -6,6 +6,7 @@ enum class ConcurrencyType
     ct_parallel_threads,        // use C++ std::thread
     ct_parallel_amp_gpu,        // use C++AMP on GPU
     ct_parallel_tbb,            // use Intel Threading Building Blocks (TBB)
+    ct_parallel_opencl,         // use OpenCL
 };
 
 // concurrency used for calculations

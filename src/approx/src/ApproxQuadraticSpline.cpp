@@ -4,6 +4,8 @@
 #include <amp.h>
 #include <atomic>
 #include <iostream>
+#include <tbb/tbb.h>
+#include <tbb/parallel_for.h>
 
 // safe, no name conflict
 using namespace concurrency;
@@ -51,16 +53,48 @@ void ApproxQuadraticSpline::CalculateParametersForMask(const uint32_t mask)
     }
 }
 
+void ApproxQuadraticSpline::CalculateParameters_threads()
+{
+    size_t i;
+    std::atomic<uint32_t> atMask = 1;
+
+    std::thread** workers = new std::thread*[appWorkerCount];
+
+    for (i = 0; i < appWorkerCount; i++)
+    {
+        workers[i] = new std::thread([&atMask](ApproxQuadraticSpline* obj) {
+            uint32_t myMask;
+            while ((myMask = atMask++) < APPROX_MASK_COUNT)
+                obj->CalculateParametersForMask(myMask);
+        }, this);
+    }
+
+    for (i = 0; i < appWorkerCount; i++)
+    {
+        if (workers[i]->joinable())
+            workers[i]->join();
+
+        delete workers[i];
+    }
+
+    delete workers;
+}
+
 void ApproxQuadraticSpline::CalculateParameters_AMP()
 {
     // TODO
 }
 
+void ApproxQuadraticSpline::CalculateParameters_TBB()
+{
+    tbb::parallel_for(1, APPROX_MASK_COUNT, [&](int i) {
+        CalculateParametersForMask(i);
+    });
+}
+
 HRESULT IfaceCalling ApproxQuadraticSpline::Approximate(TApproximationParams *params)
 {
     uint32_t mask;
-    std::atomic<uint32_t> atMask;
-    size_t i;
 
     // cache count and values pointer
     mEnumeratedLevels->GetLevelsCount(&valueCount);
@@ -73,32 +107,15 @@ HRESULT IfaceCalling ApproxQuadraticSpline::Approximate(TApproximationParams *pa
     }
     else if (appConcurrency == ConcurrencyType::ct_parallel_threads)
     {
-        atMask = 1;
-
-        std::thread** workers = new std::thread*[appWorkerCount];
-
-        for (i = 0; i < appWorkerCount; i++)
-        {
-            workers[i] = new std::thread([&atMask](ApproxQuadraticSpline* obj) {
-                uint32_t myMask;
-                while ((myMask = atMask++) < APPROX_MASK_COUNT)
-                    obj->CalculateParametersForMask(myMask);
-            }, this);
-        }
-
-        for (i = 0; i < appWorkerCount; i++)
-        {
-            if (workers[i]->joinable())
-                workers[i]->join();
-
-            delete workers[i];
-        }
-
-        delete workers;
+        CalculateParameters_threads();
     }
     else if (appConcurrency == ConcurrencyType::ct_parallel_amp_gpu)
     {
         CalculateParameters_AMP();
+    }
+    else if (appConcurrency == ConcurrencyType::ct_parallel_tbb)
+    {
+        CalculateParameters_TBB();
     }
 
     return S_OK;
