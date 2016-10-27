@@ -29,8 +29,7 @@ class ApproxAkimaSpline : public CCommonApprox
 
         void CalculateParameters_AMP();
 
-        // retrieves shift offsets for mask-based calculations
-        inline void GetOffsetsForMask(const uint32_t mask, size_t* offsets);
+        void CalculateParameters_TBB();
 
         // retrieves index of closest value in glucose levels
         HRESULT GetIndexFor(floattype time, size_t &index);

@@ -102,5 +102,8 @@
     <ClInclude Include="..\..\src\cli\appconfig.h">
       <Filter>src\cli</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\src\approx\src\precalculated.h">
+      <Filter>src\approx\src</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

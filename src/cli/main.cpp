@@ -37,7 +37,7 @@ int main(int argc, char** argv)
     // TODO
 
     // TODO: load approx method from command line parameters
-    appApproxMethod = apxmQuadraticSpline;
+    appApproxMethod = apxmAkimaSpline;
 
     // TODO: load concurrency type from command line parameters
     appConcurrency = ConcurrencyType::ct_parallel_tbb;
@@ -61,6 +61,9 @@ int main(int argc, char** argv)
 
     clock_t tmStart = clock();
 
+    uint64_t totalCount = 0;
+    size_t tmp;
+
     std::cout << "Processing " << vec.size() << " segments..." << std::endl;
     for (size_t i = 0; i < vec.size(); i++)
     {
@@ -81,7 +84,7 @@ int main(int argc, char** argv)
         apx->Approximate(nullptr);
 
         // some testing values for output
-        size_t levcount = 768;
+        size_t levcount = 4768;
         size_t filled;
         floattype* levels = new floattype[levcount];
 

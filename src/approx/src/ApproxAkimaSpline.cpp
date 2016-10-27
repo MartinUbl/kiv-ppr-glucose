@@ -4,6 +4,8 @@
 #include <iostream>
 #include <thread>
 #include "../../cli/appconfig.h"
+#include "precalculated.h"
+#include <tbb/tbb.h>
 
 // safe, no name conflict
 using namespace concurrency;
@@ -13,7 +15,7 @@ void ApproxAkimaSpline::CalculateParametersForMask(const uint32_t mask)
     // shifting base for mask-based calculation
     size_t base;
     // offsets of shifted values (used for fast lookup) (one extra to avoid division by 8 in loop)
-    size_t offsets[9];
+    const int *offsets = mask_shift_base[mask];
 
     size_t i;
     size_t j;
@@ -48,16 +50,13 @@ void ApproxAkimaSpline::CalculateParametersForMask(const uint32_t mask)
 
     m = &derivations[2];
 
-    // calculate offsets
-    GetOffsetsForMask(mask, offsets);
-
     base = 0;
     j = 0;
 
     // precalculate derivatives
     for (i = 0; i < valueCount - 1; i++, j++)
     {
-        if (j == 8)
+        if (j == mask_weights[mask])
         {
             base += offsets[j] - offsets[0];
             j = 0;
@@ -79,7 +78,7 @@ void ApproxAkimaSpline::CalculateParametersForMask(const uint32_t mask)
 
     for (i = 0; i < valueCount - 1; i++, j++)
     {
-        if (j == 8)
+        if (j == mask_weights[mask])
         {
             base += offsets[j] - offsets[0];
             j = 0;
@@ -138,11 +137,6 @@ void ApproxAkimaSpline::CalculateParameters_threads()
 {
     std::thread** workers = new std::thread*[appWorkerCount];
 
-    // shifting base for mask-based calculation
-    size_t base;
-    // offsets of shifted values (used for fast lookup) (one extra to avoid division by 8 in loop)
-    size_t offsets[APPROX_MASK_COUNT][9];
-
     // thread work assignment structure - "farmer"
     struct threadWork_t
     {
@@ -192,7 +186,6 @@ void ApproxAkimaSpline::CalculateParameters_threads()
     };
 
     size_t i;
-    size_t j;
 
     std::vector<floattype> derivations[APPROX_MASK_COUNT];
 
@@ -225,18 +218,9 @@ void ApproxAkimaSpline::CalculateParameters_threads()
         derivations[mask].resize(valueCount + 4);
 
         m[mask] = &derivations[mask][2];
-
-        // calculate offsets
-        GetOffsetsForMask(mask, offsets[mask]);
-
-        base = 0;
-        j = 0;
     }
 
     threadWork_t thrWork(maskedCount);
-
-    base = 0;
-    j = 0;
 
     std::mutex barrierMtx;
     std::atomic<size_t> barrierCnt;
@@ -251,17 +235,17 @@ void ApproxAkimaSpline::CalculateParameters_threads()
         workers[i] = new std::thread([&](ApproxAkimaSpline* obj) {
             uint8_t mask;
             int32_t myWork;
-            size_t base, j;
+            int pos, pos_n;
             while (thrWork.getWork(mask, myWork))
             {
-                j = myWork % 8;
-                base = myWork - j;
+                pos = 8 * (myWork / mask_weights[mask]) + mask_index_transform[mask][myWork % mask_weights[mask]];
+                pos_n = 8 * ((myWork + 1) / mask_weights[mask]) + mask_index_transform[mask][(myWork + 1) % mask_weights[mask]];
 
-                if (base + offsets[mask][j] >= maskedCount[mask] || base + offsets[mask][j + 1] >= maskedCount[mask])
+                if (pos >= valueCount || pos_n >= valueCount)
                     continue;
 
-                m[mask][myWork] = (obj->values[base + offsets[mask][j + 1]].level - obj->values[base + offsets[mask][j]].level) /
-                                  (obj->values[base + offsets[mask][j + 1]].datetime - obj->values[base + offsets[mask][j]].datetime);
+                m[mask][myWork] = (obj->values[pos_n].level - obj->values[pos].level) /
+                                  (obj->values[pos_n].datetime - obj->values[pos].datetime);
             }
 
             // block on condition variable
@@ -277,10 +261,10 @@ void ApproxAkimaSpline::CalculateParameters_threads()
             floattype tmpWeight1, tmpWeight2;
             while (thrWork.getWork(mask, myWork))
             {
-                j = myWork % 8;
-                base = myWork - j;
+                pos = 8 * (myWork / mask_weights[mask]) + mask_index_transform[mask][myWork % mask_weights[mask]];
+                pos_n = 8 * ((myWork + 1) / mask_weights[mask]) + mask_index_transform[mask][(myWork + 1) % mask_weights[mask]];
 
-                if (base + offsets[mask][j] >= maskedCount[mask] || base + offsets[mask][j + 1] >= maskedCount[mask])
+                if (pos >= valueCount || pos_n >= valueCount)
                     continue;
 
                 floattype* mmask = m[mask];
@@ -294,7 +278,7 @@ void ApproxAkimaSpline::CalculateParameters_threads()
                 }
                 else
                 {
-                    floattype deltax = obj->values[base + offsets[mask][j + 1]].datetime - obj->values[base + offsets[mask][j]].datetime;
+                    floattype deltax = obj->values[pos_n].datetime - obj->values[pos].datetime;
 
                     tmpWeight1 = fabs(mmask[myWork + 1] - mmask[myWork]);     // w_i+1
                     tmpWeight2 = fabs(mmask[myWork - 1] - mmask[myWork - 2]); // w_i-1
@@ -308,7 +292,7 @@ void ApproxAkimaSpline::CalculateParameters_threads()
                         wsum = 2.0;
                     }
 
-                    obj->a0Coefs[mask][myWork] = obj->values[base + offsets[mask][j]].level;
+                    obj->a0Coefs[mask][myWork] = obj->values[pos].level;
                     obj->a1Coefs[mask][myWork] = (tmpWeight1 * mmask[myWork - 1] + tmpWeight2 * mmask[myWork]) / wsum;
 
                     tmpWeight1 = fabs(mmask[myWork + 1 + 1] - mmask[myWork + 1]);     // w_i+1
@@ -370,6 +354,142 @@ void ApproxAkimaSpline::CalculateParameters_AMP()
     //
 }
 
+void ApproxAkimaSpline::CalculateParameters_TBB()
+{
+    int i;
+
+    std::vector<floattype> derivations[APPROX_MASK_COUNT];
+
+    size_t maskedCount[APPROX_MASK_COUNT];
+    size_t remCount;
+
+    floattype* m[APPROX_MASK_COUNT];
+
+    // serial calculation, this is too short for parallelization
+    for (uint16_t mask = 1; mask <= 255; mask++)
+    {
+        maskedCount[mask] = mask_weights[mask];
+
+        remCount = (valueCount / 8);
+
+        maskedCount[mask] = remCount * maskedCount[mask];
+
+        for (i = 0; i < valueCount - remCount * 8; i++)
+            maskedCount[mask] += (mask >> (7 - i)) & 1;
+
+        // resize value vectors, we know how much values do we need
+        a0Coefs[mask].resize(valueCount - 1);
+        a1Coefs[mask].resize(valueCount - 1);
+        a2Coefs[mask].resize(valueCount - 1);
+        a3Coefs[mask].resize(valueCount - 1);
+
+        derivations[mask].clear();
+        derivations[mask].resize(valueCount + 4);
+
+        m[mask] = &derivations[mask][2];
+    }
+
+    // count derivations
+    tbb::parallel_for(tbb::blocked_range2d<size_t, int>(1, APPROX_MASK_COUNT, 0, valueCount), [&](const tbb::blocked_range2d<size_t, int> &idx) {
+        size_t mask;
+        volatile int i, pos, pos_n;
+
+        // for each mask
+        for (mask = idx.rows().begin(); mask < idx.rows().end(); mask++)
+        {
+            // for each value
+            for (i = idx.cols().begin(); i < idx.cols().end(); i++)
+            {
+                pos = 8 * (i / mask_weights[mask]) + mask_index_transform[mask][i % mask_weights[mask]];
+                pos_n = 8 * ((i + 1) / mask_weights[mask]) + mask_index_transform[mask][(i + 1) % mask_weights[mask]];
+
+                if (pos >= valueCount || pos_n >= valueCount)
+                    continue;
+
+                m[mask][i] = (values[pos_n].level - values[pos].level) /
+                             (values[pos_n].datetime - values[pos].datetime);
+            }
+        }
+    });
+
+    // calculate boundary derivatives
+    for (uint16_t mask = 1; mask <= 255; mask++)
+    {
+        floattype* mmask = m[mask];
+        mmask[-1] = 2 * mmask[0] - mmask[1];
+        mmask[-2] = 2 * mmask[-1] - mmask[0];
+        mmask[maskedCount[mask] - 1] = 2 * mmask[maskedCount[mask] - 2] - mmask[maskedCount[mask] - 3];
+        mmask[maskedCount[mask]] = 2 * mmask[maskedCount[mask] - 1] - mmask[maskedCount[mask] - 2];
+    }
+
+    // count parameters
+    tbb::parallel_for(tbb::blocked_range2d<size_t, int>(1, APPROX_MASK_COUNT, 0, valueCount), [&](const tbb::blocked_range2d<size_t, int> &idx) {
+        size_t mask;
+        volatile int i, pos, pos_n;
+        floattype tmpWeight1, tmpWeight2;
+
+        // for each mask
+        for (mask = idx.rows().begin(); mask < idx.rows().end(); mask++)
+        {
+            // for each value
+            for (i = idx.cols().begin(); i < idx.cols().end(); i++)
+            {
+                pos = 8 * (i / mask_weights[mask]) + mask_index_transform[mask][i % mask_weights[mask]];
+                pos_n = 8 * ((i + 1) / mask_weights[mask]) + mask_index_transform[mask][(i + 1) % mask_weights[mask]];
+
+                if (pos >= valueCount || pos_n >= valueCount)
+                    continue;
+
+                floattype* mmask = m[mask];
+
+                floattype wsum1 = fabs(mmask[i + 1] - mmask[i]) + fabs(mmask[i - 1] - mmask[i - 2]);
+                if (wsum1 == 0)
+                {
+                    a1Coefs[mask][i] = mmask[i];
+                    a2Coefs[mask][i] = 0;
+                    a3Coefs[mask][i] = 0;
+                }
+                else
+                {
+                    floattype deltax = values[pos_n].datetime - values[pos].datetime;
+
+                    tmpWeight1 = fabs(mmask[i + 1] - mmask[i]);     // w_i+1
+                    tmpWeight2 = fabs(mmask[i - 1] - mmask[i - 2]); // w_i-1
+
+                    floattype wsum = tmpWeight1 + tmpWeight2;
+
+                    if (wsum == 0)
+                    {
+                        tmpWeight1 = 1.0;
+                        tmpWeight2 = 1.0;
+                        wsum = 2.0;
+                    }
+
+                    a0Coefs[mask][i] = values[pos].level;
+                    a1Coefs[mask][i] = (tmpWeight1 * mmask[i - 1] + tmpWeight2 * mmask[i]) / wsum;
+
+                    tmpWeight1 = fabs(mmask[i + 1 + 1] - mmask[i + 1]);     // w_i+1
+                    tmpWeight2 = fabs(mmask[i - 1 + 1] - mmask[i - 2 + 1]); // w_i-1
+
+                    wsum = tmpWeight1 + tmpWeight2;
+
+                    if (wsum == 0)
+                    {
+                        tmpWeight1 = 1.0;
+                        tmpWeight2 = 1.0;
+                        wsum = 2.0;
+                    }
+
+                    const floattype nextA1 = (tmpWeight1 * mmask[i - 1 + 1] + tmpWeight2 * mmask[i + 1]) / wsum;
+
+                    a2Coefs[mask][i] = (3 * mmask[i] - 2 * a1Coefs[mask][i] - nextA1) / deltax;
+                    a3Coefs[mask][i] = (a1Coefs[mask][i] + nextA1 - 2 * mmask[i]) / (deltax * deltax);
+                }
+            }
+        }
+    });
+}
+
 HRESULT IfaceCalling ApproxAkimaSpline::Approximate(TApproximationParams *params)
 {
     uint32_t mask;
@@ -386,6 +506,14 @@ HRESULT IfaceCalling ApproxAkimaSpline::Approximate(TApproximationParams *params
     else if (appConcurrency == ConcurrencyType::ct_parallel_threads)
     {
         CalculateParameters_threads();
+    }
+    else if (appConcurrency == ConcurrencyType::ct_parallel_amp_gpu)
+    {
+        CalculateParameters_AMP();
+    }
+    else if (appConcurrency == ConcurrencyType::ct_parallel_tbb)
+    {
+        CalculateParameters_TBB();
     }
 
     return S_OK;
@@ -407,12 +535,10 @@ HRESULT IfaceCalling ApproxAkimaSpline::GetLevels(floattype desiredtime, floatty
 
     // shifting base for mask-based calculation
     size_t base;
-    // offsets of shifted values (used for fast lookup) (one extra to avoid division by 8 in loop)
-    size_t offsets[9];
     size_t i, j;
 
-    // calculate offsets
-    GetOffsetsForMask(mask, offsets);
+    // retrieve precalculated offsets
+    const int* offsets = mask_shift_base[mask];
 
     base = 0;
 
@@ -425,7 +551,7 @@ HRESULT IfaceCalling ApproxAkimaSpline::GetLevels(floattype desiredtime, floatty
     for (; i < count; i++)
     {
         // we want more than we have
-        if (index >= valueCount)
+        if (index >= valueCount - 1)
             break;
 
         timediff = curtime - values[base + offsets[j]].datetime;
@@ -445,36 +571,16 @@ HRESULT IfaceCalling ApproxAkimaSpline::GetLevels(floattype desiredtime, floatty
         {
             index++;
             // move base if needed (this is needed for mask-based calculation)
-            if (index % 8 == 0 && index != 0)
+            if (index % mask_weights[mask] == 0 && index != 0)
                 base += offsets[j + 1] - offsets[0];
 
-            j = (j + 1) % 8;
+            j = (j + 1) % mask_weights[mask];
         }
     }
 
     *filled = i - 1;
 
     return S_OK;
-}
-
-void ApproxAkimaSpline::GetOffsetsForMask(const uint32_t mask, size_t* offsets)
-{
-    size_t i, j;
-
-    i = 0;
-    j = 0;
-    // calculate one extra offset to avoid division in main loop
-    while (i < 9)
-    {
-        // inverse the mask, so it matches the group in "the right direction" (MSB = 0. value, LSB = 7. value within group)
-        if (((1 << (7 - (j % 8))) & mask) != 0)
-        {
-            offsets[i] = j;
-            i++;
-        }
-
-        j++;
-    }
 }
 
 HRESULT ApproxAkimaSpline::GetIndexFor(floattype time, size_t &index)

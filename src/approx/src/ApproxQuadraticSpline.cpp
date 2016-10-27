@@ -1,6 +1,7 @@
 #include "ApproxQuadraticSpline.h"
 
 #include "../../cli/appconfig.h"
+#include "precalculated.h"
 #include <amp.h>
 #include <atomic>
 #include <iostream>
@@ -38,7 +39,7 @@ void ApproxQuadraticSpline::CalculateParametersForMask(const uint32_t mask)
     j = 1;
     for (i = 1; i < valueCount - 1; i++, j++)
     {
-        if (j == 8)
+        if (j == mask_weights[mask])
         {
             base += offsets[j] - offsets[0];
             j = 0;
@@ -125,7 +126,7 @@ HRESULT IfaceCalling ApproxQuadraticSpline::GetLevels(floattype desiredtime, flo
 {
     // desired mask to be retrieved, full mask for now
     // this should not be here after testing stage
-    const uint8_t mask = 0xFF;
+    const uint8_t mask = 0xAA;
 
     HRESULT res;
     size_t index;
@@ -172,10 +173,10 @@ HRESULT IfaceCalling ApproxQuadraticSpline::GetLevels(floattype desiredtime, flo
         {
             index++;
             // move base if needed (this is needed for mask-based calculation)
-            if (index % 8 == 0 && index != 0)
+            if (index % mask_weights[mask] == 0 && index != 0)
                 base += offsets[j + 1] - offsets[0];
 
-            j = (j + 1) % 8;
+            j = (j + 1) % mask_weights[mask];
         }
     }
 
