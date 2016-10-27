@@ -15,8 +15,6 @@ void ApproxQuadraticSpline::CalculateParametersForMask(const uint32_t mask)
 {
     // shifting base for mask-based calculation
     size_t base;
-    // offsets of shifted values (used for fast lookup) (one extra to avoid division by 8 in loop)
-    size_t offsets[9];
 
     size_t i;
     size_t j;
@@ -26,8 +24,8 @@ void ApproxQuadraticSpline::CalculateParametersForMask(const uint32_t mask)
     bCoefs[mask].resize(valueCount - 1);
     cCoefs[mask].resize(valueCount - 1);
 
-    // calculate offsets
-    GetOffsetsForMask(mask, offsets);
+    // retrieve offsets
+    const int* offsets = mask_shift_base[mask];
 
     base = 0;
 
@@ -78,7 +76,7 @@ void ApproxQuadraticSpline::CalculateParameters_threads()
         delete workers[i];
     }
 
-    delete workers;
+    delete[] workers;
 }
 
 void ApproxQuadraticSpline::CalculateParameters_AMP()
@@ -126,7 +124,7 @@ HRESULT IfaceCalling ApproxQuadraticSpline::GetLevels(floattype desiredtime, flo
 {
     // desired mask to be retrieved, full mask for now
     // this should not be here after testing stage
-    const uint8_t mask = 0xAA;
+    const uint8_t mask = 0xFF;
 
     HRESULT res;
     size_t index;
@@ -138,12 +136,10 @@ HRESULT IfaceCalling ApproxQuadraticSpline::GetLevels(floattype desiredtime, flo
 
     // shifting base for mask-based calculation
     size_t base;
-    // offsets of shifted values (used for fast lookup) (one extra to avoid division by 8 in loop)
-    size_t offsets[9];
     size_t i, j;
 
     // calculate offsets
-    GetOffsetsForMask(mask, offsets);
+    const int* offsets = mask_shift_base[mask];
 
     base = 0;
 
@@ -190,26 +186,6 @@ void ApproxQuadraticSpline::CalculateCoefsFor(const uint32_t mask, size_t index,
     aCoefs[mask][index] = (((yCur - yNext) / (xCur - xNext)) - 2.0 * aPrev * xCur - bPrev) / (xNext - xCur);
     bCoefs[mask][index] = xCur * (2.0 * aPrev - 2.0 * aCoefs[mask][index]) + bPrev;
     cCoefs[mask][index] = yNext - aCoefs[mask][index] * xNext * xNext - bCoefs[mask][index] * xNext;
-}
-
-void ApproxQuadraticSpline::GetOffsetsForMask(const uint32_t mask, size_t* offsets)
-{
-    size_t i, j;
-
-    i = 0;
-    j = 0;
-    // calculate one extra offset to avoid division in main loop
-    while (i < 9)
-    {
-        // inverse the mask, so it matches the group in "the right direction" (MSB = 0. value, LSB = 7. value within group)
-        if (((1 << (7 - (j % 8))) & mask) != 0)
-        {
-            offsets[i] = j;
-            i++;
-        }
-
-        j++;
-    }
 }
 
 HRESULT ApproxQuadraticSpline::GetIndexFor(floattype time, size_t &index)

@@ -33,9 +33,6 @@ class ApproxQuadraticSpline : public CCommonApprox
         // calculates coefficients for one specific index in one specific mask
         inline void CalculateCoefsFor(const uint32_t mask, size_t index, floattype aPrev, floattype bPrev, floattype xCur, floattype xNext, floattype yCur, floattype yNext);
 
-        // retrieves shift offsets for mask-based calculations
-        inline void GetOffsetsForMask(const uint32_t mask, size_t* offsets);
-
         // retrieves index of closest value in glucose levels
         HRESULT GetIndexFor(floattype time, size_t &index);
 

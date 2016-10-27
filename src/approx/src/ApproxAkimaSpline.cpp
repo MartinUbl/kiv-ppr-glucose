@@ -17,8 +17,7 @@ void ApproxAkimaSpline::CalculateParametersForMask(const uint32_t mask)
     // offsets of shifted values (used for fast lookup) (one extra to avoid division by 8 in loop)
     const int *offsets = mask_shift_base[mask];
 
-    size_t i;
-    size_t j;
+    size_t i, j;
 
     std::vector<floattype> derivations;
 
@@ -28,25 +27,19 @@ void ApproxAkimaSpline::CalculateParametersForMask(const uint32_t mask)
     floattype tmpWeight1, tmpWeight2;
     floattype* m;
 
-    maskedCount = 0;
-    for (i = 0; i < 8; i++)
-        maskedCount += (mask >> i) & 1;
-
     remCount = (valueCount / 8);
-
-    maskedCount = remCount * maskedCount;
-
+    maskedCount = remCount * mask_weights[mask];
     for (i = 0; i < valueCount - remCount * 8; i++)
         maskedCount += (mask >> (7 - i)) & 1;
 
     // resize value vectors, we know how much values do we need
-    a0Coefs[mask].resize(valueCount - 1);
-    a1Coefs[mask].resize(valueCount - 1);
-    a2Coefs[mask].resize(valueCount - 1);
-    a3Coefs[mask].resize(valueCount - 1);
+    a0Coefs[mask].resize(maskedCount - 1);
+    a1Coefs[mask].resize(maskedCount - 1);
+    a2Coefs[mask].resize(maskedCount - 1);
+    a3Coefs[mask].resize(maskedCount - 1);
 
     derivations.clear();
-    derivations.resize(valueCount + 4);
+    derivations.resize(maskedCount + 4);
 
     m = &derivations[2];
 
@@ -62,7 +55,7 @@ void ApproxAkimaSpline::CalculateParametersForMask(const uint32_t mask)
             j = 0;
         }
 
-        if (base + offsets[j] > valueCount || base + offsets[j + 1] > valueCount)
+        if (base + offsets[j] > maskedCount || base + offsets[j + 1] > maskedCount)
             break;
 
         m[i] = (values[base + offsets[j + 1]].level - values[base + offsets[j]].level) /
@@ -84,7 +77,7 @@ void ApproxAkimaSpline::CalculateParametersForMask(const uint32_t mask)
             j = 0;
         }
 
-        if (base + offsets[j] > valueCount || base + offsets[j + 1] > valueCount)
+        if (base + offsets[j] > maskedCount || base + offsets[j + 1] > maskedCount)
             break;
 
         const floattype wsum1 = fabs(m[i + 1] - m[i]) + fabs(m[i - 1] - m[i - 2]);
@@ -195,27 +188,21 @@ void ApproxAkimaSpline::CalculateParameters_threads()
     floattype* m[APPROX_MASK_COUNT];
 
     // serial calculation, this is too short for parallelization
-    for (uint16_t mask = 1; mask <= 255; mask++)
+    for (uint16_t mask = 1; mask < APPROX_MASK_COUNT; mask++)
     {
-        maskedCount[mask] = 0;
-        for (i = 0; i < 8; i++)
-            maskedCount[mask] += (mask >> i) & 1;
-
         remCount = (valueCount / 8);
-
-        maskedCount[mask] = remCount * maskedCount[mask];
-
+        maskedCount[mask] = remCount * mask_weights[mask];
         for (i = 0; i < valueCount - remCount * 8; i++)
             maskedCount[mask] += (mask >> (7 - i)) & 1;
 
         // resize value vectors, we know how much values do we need
-        a0Coefs[mask].resize(valueCount - 1);
-        a1Coefs[mask].resize(valueCount - 1);
-        a2Coefs[mask].resize(valueCount - 1);
-        a3Coefs[mask].resize(valueCount - 1);
+        a0Coefs[mask].resize(maskedCount[mask] - 1);
+        a1Coefs[mask].resize(maskedCount[mask] - 1);
+        a2Coefs[mask].resize(maskedCount[mask] - 1);
+        a3Coefs[mask].resize(maskedCount[mask] - 1);
 
         derivations[mask].clear();
-        derivations[mask].resize(valueCount + 4);
+        derivations[mask].resize(maskedCount[mask] + 4);
 
         m[mask] = &derivations[mask][2];
     }
@@ -241,7 +228,7 @@ void ApproxAkimaSpline::CalculateParameters_threads()
                 pos = 8 * (myWork / mask_weights[mask]) + mask_index_transform[mask][myWork % mask_weights[mask]];
                 pos_n = 8 * ((myWork + 1) / mask_weights[mask]) + mask_index_transform[mask][(myWork + 1) % mask_weights[mask]];
 
-                if (pos >= valueCount || pos_n >= valueCount)
+                if (pos >= maskedCount[mask] || pos_n >= maskedCount[mask])
                     continue;
 
                 m[mask][myWork] = (obj->values[pos_n].level - obj->values[pos].level) /
@@ -264,7 +251,7 @@ void ApproxAkimaSpline::CalculateParameters_threads()
                 pos = 8 * (myWork / mask_weights[mask]) + mask_index_transform[mask][myWork % mask_weights[mask]];
                 pos_n = 8 * ((myWork + 1) / mask_weights[mask]) + mask_index_transform[mask][(myWork + 1) % mask_weights[mask]];
 
-                if (pos >= valueCount || pos_n >= valueCount)
+                if (pos >= maskedCount[mask] || pos_n >= maskedCount[mask])
                     continue;
 
                 floattype* mmask = m[mask];
@@ -323,7 +310,7 @@ void ApproxAkimaSpline::CalculateParameters_threads()
             cvFarmer.wait(lck);
 
         // calculate boundary derivatives
-        for (uint16_t mask = 1; mask <= 255; mask++)
+        for (uint16_t mask = 1; mask < APPROX_MASK_COUNT; mask++)
         {
             floattype* mmask = m[mask];
             mmask[-1] = 2 * mmask[0] - mmask[1];
@@ -346,7 +333,7 @@ void ApproxAkimaSpline::CalculateParameters_threads()
         delete workers[i];
     }
 
-    delete workers;
+    delete[] workers;
 }
 
 void ApproxAkimaSpline::CalculateParameters_AMP()
@@ -368,31 +355,27 @@ void ApproxAkimaSpline::CalculateParameters_TBB()
     // serial calculation, this is too short for parallelization
     for (uint16_t mask = 1; mask <= 255; mask++)
     {
-        maskedCount[mask] = mask_weights[mask];
-
         remCount = (valueCount / 8);
-
-        maskedCount[mask] = remCount * maskedCount[mask];
-
+        maskedCount[mask] = remCount * mask_weights[mask];
         for (i = 0; i < valueCount - remCount * 8; i++)
             maskedCount[mask] += (mask >> (7 - i)) & 1;
 
         // resize value vectors, we know how much values do we need
-        a0Coefs[mask].resize(valueCount - 1);
-        a1Coefs[mask].resize(valueCount - 1);
-        a2Coefs[mask].resize(valueCount - 1);
-        a3Coefs[mask].resize(valueCount - 1);
+        a0Coefs[mask].resize(maskedCount[mask] - 1);
+        a1Coefs[mask].resize(maskedCount[mask] - 1);
+        a2Coefs[mask].resize(maskedCount[mask] - 1);
+        a3Coefs[mask].resize(maskedCount[mask] - 1);
 
         derivations[mask].clear();
-        derivations[mask].resize(valueCount + 4);
+        derivations[mask].resize(maskedCount[mask] + 4);
 
         m[mask] = &derivations[mask][2];
     }
 
     // count derivations
-    tbb::parallel_for(tbb::blocked_range2d<size_t, int>(1, APPROX_MASK_COUNT, 0, valueCount), [&](const tbb::blocked_range2d<size_t, int> &idx) {
+    tbb::parallel_for(tbb::blocked_range2d<size_t, int>(1, APPROX_MASK_COUNT, 0, (int)valueCount), [&](const tbb::blocked_range2d<size_t, int> &idx) {
         size_t mask;
-        volatile int i, pos, pos_n;
+        int i, pos, pos_n;
 
         // for each mask
         for (mask = idx.rows().begin(); mask < idx.rows().end(); mask++)
@@ -403,7 +386,7 @@ void ApproxAkimaSpline::CalculateParameters_TBB()
                 pos = 8 * (i / mask_weights[mask]) + mask_index_transform[mask][i % mask_weights[mask]];
                 pos_n = 8 * ((i + 1) / mask_weights[mask]) + mask_index_transform[mask][(i + 1) % mask_weights[mask]];
 
-                if (pos >= valueCount || pos_n >= valueCount)
+                if (pos >= maskedCount[mask] || pos_n >= maskedCount[mask])
                     continue;
 
                 m[mask][i] = (values[pos_n].level - values[pos].level) /
@@ -413,7 +396,7 @@ void ApproxAkimaSpline::CalculateParameters_TBB()
     });
 
     // calculate boundary derivatives
-    for (uint16_t mask = 1; mask <= 255; mask++)
+    for (uint16_t mask = 1; mask < APPROX_MASK_COUNT; mask++)
     {
         floattype* mmask = m[mask];
         mmask[-1] = 2 * mmask[0] - mmask[1];
@@ -423,7 +406,7 @@ void ApproxAkimaSpline::CalculateParameters_TBB()
     }
 
     // count parameters
-    tbb::parallel_for(tbb::blocked_range2d<size_t, int>(1, APPROX_MASK_COUNT, 0, valueCount), [&](const tbb::blocked_range2d<size_t, int> &idx) {
+    tbb::parallel_for(tbb::blocked_range2d<size_t, int>(1, APPROX_MASK_COUNT, 0, (int)valueCount), [&](const tbb::blocked_range2d<size_t, int> &idx) {
         size_t mask;
         volatile int i, pos, pos_n;
         floattype tmpWeight1, tmpWeight2;
@@ -437,7 +420,7 @@ void ApproxAkimaSpline::CalculateParameters_TBB()
                 pos = 8 * (i / mask_weights[mask]) + mask_index_transform[mask][i % mask_weights[mask]];
                 pos_n = 8 * ((i + 1) / mask_weights[mask]) + mask_index_transform[mask][(i + 1) % mask_weights[mask]];
 
-                if (pos >= valueCount || pos_n >= valueCount)
+                if (pos >= maskedCount[mask] || pos_n >= maskedCount[mask])
                     continue;
 
                 floattype* mmask = m[mask];

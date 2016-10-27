@@ -23,18 +23,22 @@ class ApproxAkimaSpline : public CCommonApprox
 
     protected:
 
+        // calculate parameters for single mask (serial version)
         void CalculateParametersForMask(const uint32_t mask);
 
+        // calculate parameters using standard threads
         void CalculateParameters_threads();
 
+        // calculate paàameters using C++AMP
         void CalculateParameters_AMP();
 
+        // calculate parameters using Intel TBB
         void CalculateParameters_TBB();
 
         // retrieves index of closest value in glucose levels
         HRESULT GetIndexFor(floattype time, size_t &index);
 
-        // quadratic spline coefficients
+        // akima spline coefficients
         std::vector<floattype> a0Coefs[APPROX_MASK_COUNT], a1Coefs[APPROX_MASK_COUNT], a2Coefs[APPROX_MASK_COUNT], a3Coefs[APPROX_MASK_COUNT];
 
         // cached value count

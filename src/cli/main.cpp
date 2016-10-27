@@ -15,6 +15,11 @@ ConcurrencyType appConcurrency = ConcurrencyType::ct_serial;
 size_t appApproxMethod = 0;
 // worker count (if the method needs it)
 size_t appWorkerCount = 1;
+// console output enabled?
+bool appSilentMode = false;
+
+// should we create testing SVG output? (1 = true, anything else = false)
+#define DEBUG_SVG_PRINT 0
 
 // reduces all times by minimum of all times - causes less precision loss
 static floattype reduceLevels(CGlucoseLevels* lvls)
@@ -34,8 +39,6 @@ static floattype reduceLevels(CGlucoseLevels* lvls)
 
 int main(int argc, char** argv)
 {
-    // TODO
-
     // TODO: load approx method from command line parameters
     appApproxMethod = apxmAkimaSpline;
 
@@ -44,6 +47,9 @@ int main(int argc, char** argv)
 
     // TODO: load worker count from command line parameters
     appWorkerCount = 4;
+
+    // TODO: load silent mode parameter from command line parameters
+    appSilentMode = false;
 
     // Load parameters - fow now use just SQLite loader
     SQLiteLoader ldr;
@@ -62,12 +68,14 @@ int main(int argc, char** argv)
     clock_t tmStart = clock();
 
     uint64_t totalCount = 0;
-    size_t tmp;
 
-    std::cout << "Processing " << vec.size() << " segments..." << std::endl;
+    if (!appSilentMode)
+        std::cout << "Processing " << vec.size() << " segments..." << std::endl;
+
     for (size_t i = 0; i < vec.size(); i++)
     {
-        std::cout << "Processing segment " << (i+1) << " / " << vec.size() << "..." << std::endl;
+        if (!appSilentMode)
+            std::cout << "Processing segment " << (i+1) << " / " << vec.size() << "..." << std::endl;
 
         // reduce times to not lose precision so rapidly
         floattype reducedBy = reduceLevels(vec[i]);
@@ -83,6 +91,7 @@ int main(int argc, char** argv)
 
         apx->Approximate(nullptr);
 
+#if DEBUG_SVG_PRINT == 1
         // some testing values for output
         size_t levcount = 4768;
         size_t filled;
@@ -94,7 +103,6 @@ int main(int argc, char** argv)
         // retrieve approximated levels
         apx->GetLevels(timestart, step, levcount, levels, &filled, 0);
 
-        /*
         if (i == 0)
         {
             TGlucoseLevel* levs;
@@ -103,14 +111,15 @@ int main(int argc, char** argv)
             // visualize to some easy format, SVG should be nice
             VisualizeSVG("test.svg", timestart, step, levcount, levels, levs, false);
         }
-        */
+#endif
 
         delete apx;
     }
 
     clock_t tmTotal = (clock_t)(1000.0f * (float)(clock() - tmStart) / (float)CLOCKS_PER_SEC);
 
-    std::cout << "Done. Elapsed: " << tmTotal << "ms" << std::endl;
+    if (!appSilentMode)
+        std::cout << "Done. Elapsed: " << tmTotal << "ms" << std::endl;
 
     ldr.Finalize();
 

@@ -15,3 +15,5 @@ extern ConcurrencyType appConcurrency;
 extern size_t appApproxMethod;
 // worker count (if the method needs it)
 extern size_t appWorkerCount;
+// console output enabled?
+extern bool appSilentMode;
