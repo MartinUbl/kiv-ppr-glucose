@@ -99,3 +99,12 @@ clProgramRecord* GetCLProgramRecord(size_t apxMethod)
 
     return &clProgramMap[apxMethod];
 }
+
+size_t ShrRoundUp(size_t localWorkSize, size_t numItems)
+{
+    size_t result = localWorkSize;
+    while (result < numItems)
+        result += localWorkSize;
+
+    return result;
+}

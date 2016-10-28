@@ -544,6 +544,8 @@ void ApproxAkimaSpline::CalculateParameters_OpenCL()
     ret = clEnqueueWriteBuffer(program->commandQueue, values_m, CL_TRUE, 0, valueCount * 2 * vals_size, vals_cp, 0, NULL, NULL);
     ret = clEnqueueWriteBuffer(program->commandQueue, masked_counts_m, CL_TRUE, 0, APPROX_MASK_COUNT, maskedCount, 0, NULL, NULL);
 
+    cl_event event1, event2, event3;
+
     ///////////////////////////// derivatives calculation /////////////////////////////
 
     // create OpenCL kernel for derivatives calculation
@@ -557,9 +559,12 @@ void ApproxAkimaSpline::CalculateParameters_OpenCL()
     ret = clSetKernelArg(kernel, 4, sizeof(int), &valueCount);
 
     // work!
-    size_t global_item_size[] = { APPROX_MASK_COUNT, valueCount };
-    size_t local_item_size[] = { 1, valueCount };
-    ret = clEnqueueNDRangeKernel(program->commandQueue, kernel, 2, NULL, global_item_size, local_item_size, 0, NULL, NULL);
+    size_t local_item_size[] = { 1, 16 };
+    size_t global_item_size[] = { APPROX_MASK_COUNT, ShrRoundUp(16, valueCount) };
+
+    ret = clEnqueueNDRangeKernel(program->commandQueue, kernel, 2, NULL, global_item_size, local_item_size, 0, NULL, &event1);
+
+    clWaitForEvents(1, &event1);
 
     ////////////////////// derivatives boundary values calculation ////////////////////
 
@@ -570,9 +575,11 @@ void ApproxAkimaSpline::CalculateParameters_OpenCL()
     ret = clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&masked_counts_m);
     ret = clSetKernelArg(kernel, 2, sizeof(int), &valueCount);
 
-    size_t global_item_size2 = APPROX_MASK_COUNT;
     size_t local_item_size2 = 16;
-    ret = clEnqueueNDRangeKernel(program->commandQueue, kernel, 1, NULL, &global_item_size2, &local_item_size2, 0, NULL, NULL);
+    size_t global_item_size2 = APPROX_MASK_COUNT;
+    ret = clEnqueueNDRangeKernel(program->commandQueue, kernel, 1, NULL, &global_item_size2, &local_item_size2, 0, NULL, &event2);
+
+    clWaitForEvents(1, &event2);
 
     ///////////////////////////// parameters calculation //////////////////////////////
 
@@ -589,10 +596,11 @@ void ApproxAkimaSpline::CalculateParameters_OpenCL()
     ret = clSetKernelArg(kernel, 7, sizeof(cl_mem), (void *)&a2_m);
     ret = clSetKernelArg(kernel, 8, sizeof(cl_mem), (void *)&a3_m);
 
-    size_t global_item_size3[] = { APPROX_MASK_COUNT, valueCount };
-    size_t local_item_size3[] = { 1, valueCount };
-    ret = clEnqueueNDRangeKernel(program->commandQueue, kernel, 2, NULL, global_item_size3, local_item_size3, 0, NULL, NULL);
+    size_t local_item_size3[] = { 1, 16 };
+    size_t global_item_size3[] = { APPROX_MASK_COUNT, ShrRoundUp(16, valueCount) };
+    ret = clEnqueueNDRangeKernel(program->commandQueue, kernel, 2, NULL, global_item_size3, local_item_size3, 0, NULL, &event3);
 
+    clWaitForEvents(1, &event3);
 
 
     // resize destination vectors

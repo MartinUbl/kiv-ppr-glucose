@@ -30,3 +30,5 @@ bool LoadCLPrograms();
 void FinalizeCLPrograms();
 // retrieves OpenCL program record (if available)
 clProgramRecord* GetCLProgramRecord(size_t apxMethod);
+// calculates appropriate global work size for supplied local work size
+size_t ShrRoundUp(size_t localWorkSize, size_t numItems);
