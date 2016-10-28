@@ -490,7 +490,7 @@ void ApproxAkimaSpline::CalculateParameters_OpenCL()
     // serial calculation, this is too short for parallelization
     for (uint16_t mask = 1; mask <= 255; mask++)
     {
-        remCount = (valueCount / 8);
+        remCount = ((int)valueCount / 8);
         maskedCount[mask] = remCount * mask_weights[mask];
         for (int i = 0; i < valueCount - remCount * 8; i++)
             maskedCount[mask] += (mask >> (7 - i)) & 1;
@@ -509,8 +509,8 @@ void ApproxAkimaSpline::CalculateParameters_OpenCL()
         double* vals_cp_typed = reinterpret_cast<double*>(vals_cp);
         for (int i = 0; i < valueCount; i++)
         {
-            vals_cp_typed[i * 2 + 0] = values[i].datetime;
-            vals_cp_typed[i * 2 + 1] = values[i].level;
+            vals_cp_typed[i * 2 + 0] = (double)values[i].datetime;
+            vals_cp_typed[i * 2 + 1] = (double)values[i].level;
         }
     }
     else
@@ -520,8 +520,8 @@ void ApproxAkimaSpline::CalculateParameters_OpenCL()
         float* vals_cp_typed = reinterpret_cast<float*>(vals_cp);
         for (int i = 0; i < valueCount; i++)
         {
-            vals_cp_typed[i * 2 + 0] = values[i].datetime;
-            vals_cp_typed[i * 2 + 1] = values[i].level;
+            vals_cp_typed[i * 2 + 0] = (float)values[i].datetime;
+            vals_cp_typed[i * 2 + 1] = (float)values[i].level;
         }
     }
 
