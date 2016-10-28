@@ -17,3 +17,14 @@ extern size_t appApproxMethod;
 extern size_t appWorkerCount;
 // console output enabled?
 extern bool appSilentMode;
+
+typedef struct
+{
+    size_t apxMethod;
+    const char* clFile;
+} clProgramLocator;
+
+// available OpenCL kernel files
+const clProgramLocator clPrograms[] = {
+    { apxmAkimaSpline, "ApproxAkimaSpline.cl" }
+};

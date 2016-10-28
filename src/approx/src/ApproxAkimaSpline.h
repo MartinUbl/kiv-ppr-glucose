@@ -35,6 +35,9 @@ class ApproxAkimaSpline : public CCommonApprox
         // calculate parameters using Intel TBB
         void CalculateParameters_TBB();
 
+        // calculate parameters using OpenCL
+        void CalculateParameters_OpenCL();
+
         // retrieves index of closest value in glucose levels
         HRESULT GetIndexFor(floattype time, size_t &index);
 

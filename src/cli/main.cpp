@@ -6,6 +6,7 @@
 #include "../approx/src/ApproxQuadraticSpline.h"
 #include "../approx/src/ApproxAkimaSpline.h"
 #include "appconfig.h"
+#include "OpenCLLoader.h"
 
 #include "TestOutput.h"
 
@@ -43,7 +44,7 @@ int main(int argc, char** argv)
     appApproxMethod = apxmAkimaSpline;
 
     // TODO: load concurrency type from command line parameters
-    appConcurrency = ConcurrencyType::ct_parallel_tbb;
+    appConcurrency = ConcurrencyType::ct_parallel_opencl;
 
     // TODO: load worker count from command line parameters
     appWorkerCount = 4;
@@ -60,10 +61,29 @@ int main(int argc, char** argv)
         }
     });
 
+    if (!appSilentMode)
+        std::cout << "Loading values from storage..." << std::endl;
+
     std::vector<CGlucoseLevels*> vec;
     res = ldr.LoadGlucoseLevels(vec);
 
     const floattype timestart = 0.0;
+
+    // if we use OpenCL concurrency type, preload programs before actual calculation
+    if (appConcurrency == ConcurrencyType::ct_parallel_opencl)
+    {
+        if (!appSilentMode)
+            std::cout << "Loading OpenCL kernel files..." << std::endl;
+
+        if (!LoadCLPrograms())
+        {
+            std::cerr << "Failed to load OpenCL kernel files, exiting." << std::endl;
+            return 1;
+        }
+    }
+
+    CCommonApprox* apx = new ApproxAkimaSpline(vec[0]);
+    apx->Approximate(nullptr);
 
     clock_t tmStart = clock();
 
@@ -122,6 +142,15 @@ int main(int argc, char** argv)
         std::cout << "Done. Elapsed: " << tmTotal << "ms" << std::endl;
 
     ldr.Finalize();
+
+    // if we use OpenCL concurrency type, erase preloaded programs
+    if (appConcurrency == ConcurrencyType::ct_parallel_opencl)
+    {
+        if (!appSilentMode)
+            std::cout << "Erasing OpenCL kernel files..." << std::endl;
+
+        FinalizeCLPrograms();
+    }
 
     return 0;
 }

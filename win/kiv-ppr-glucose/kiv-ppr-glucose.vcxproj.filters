@@ -26,6 +26,10 @@
     <Filter Include="src\loaders">
       <UniqueIdentifier>{76c41de3-687a-4ca3-a382-2ab381de9b94}</UniqueIdentifier>
     </Filter>
+    <Filter Include="OpenCL Files">
+      <UniqueIdentifier>{D011BB44-1BF7-4113-997B-A081035B40D8}</UniqueIdentifier>
+      <Extensions>cl</Extensions>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\approx\src\CommonApprox.cpp">
@@ -57,6 +61,9 @@
     </ClCompile>
     <ClCompile Include="..\..\src\approx\src\ApproxAkimaSpline.cpp">
       <Filter>src\approx\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\cli\OpenCLLoader.cpp">
+      <Filter>src\cli</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -105,5 +112,13 @@
     <ClInclude Include="..\..\src\approx\src\precalculated.h">
       <Filter>src\approx\src</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\src\cli\OpenCLLoader.h">
+      <Filter>src\cli</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Intel_OpenCL_Build_Rules Include="..\..\src\approx\src\ApproxAkimaSpline.cl">
+      <Filter>OpenCL Files</Filter>
+    </Intel_OpenCL_Build_Rules>
   </ItemGroup>
 </Project>

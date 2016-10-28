@@ -1,11 +1,14 @@
 #include "ApproxAkimaSpline.h"
 
-#include <amp.h>
 #include <iostream>
 #include <thread>
 #include "../../cli/appconfig.h"
 #include "precalculated.h"
+
+#include <amp.h>
 #include <tbb/tbb.h>
+
+#include "../../cli/OpenCLLoader.h"
 
 // safe, no name conflict
 using namespace concurrency;
@@ -228,7 +231,7 @@ void ApproxAkimaSpline::CalculateParameters_threads()
                 pos = 8 * (myWork / mask_weights[mask]) + mask_index_transform[mask][myWork % mask_weights[mask]];
                 pos_n = 8 * ((myWork + 1) / mask_weights[mask]) + mask_index_transform[mask][(myWork + 1) % mask_weights[mask]];
 
-                if (pos >= maskedCount[mask] || pos_n >= maskedCount[mask])
+                if (pos >= valueCount || pos_n >= valueCount)
                     continue;
 
                 m[mask][myWork] = (obj->values[pos_n].level - obj->values[pos].level) /
@@ -251,7 +254,7 @@ void ApproxAkimaSpline::CalculateParameters_threads()
                 pos = 8 * (myWork / mask_weights[mask]) + mask_index_transform[mask][myWork % mask_weights[mask]];
                 pos_n = 8 * ((myWork + 1) / mask_weights[mask]) + mask_index_transform[mask][(myWork + 1) % mask_weights[mask]];
 
-                if (pos >= maskedCount[mask] || pos_n >= maskedCount[mask])
+                if (pos >= valueCount || pos_n >= valueCount)
                     continue;
 
                 floattype* mmask = m[mask];
@@ -386,7 +389,7 @@ void ApproxAkimaSpline::CalculateParameters_TBB()
                 pos = 8 * (i / mask_weights[mask]) + mask_index_transform[mask][i % mask_weights[mask]];
                 pos_n = 8 * ((i + 1) / mask_weights[mask]) + mask_index_transform[mask][(i + 1) % mask_weights[mask]];
 
-                if (pos >= maskedCount[mask] || pos_n >= maskedCount[mask])
+                if (pos >= valueCount || pos_n >= valueCount)
                     continue;
 
                 m[mask][i] = (values[pos_n].level - values[pos].level) /
@@ -420,7 +423,7 @@ void ApproxAkimaSpline::CalculateParameters_TBB()
                 pos = 8 * (i / mask_weights[mask]) + mask_index_transform[mask][i % mask_weights[mask]];
                 pos_n = 8 * ((i + 1) / mask_weights[mask]) + mask_index_transform[mask][(i + 1) % mask_weights[mask]];
 
-                if (pos >= maskedCount[mask] || pos_n >= maskedCount[mask])
+                if (pos >= valueCount || pos_n >= valueCount)
                     continue;
 
                 floattype* mmask = m[mask];
@@ -473,6 +476,207 @@ void ApproxAkimaSpline::CalculateParameters_TBB()
     });
 }
 
+void ApproxAkimaSpline::CalculateParameters_OpenCL()
+{
+    cl_int ret;
+
+    clProgramRecord* program = GetCLProgramRecord(apxmAkimaSpline);
+    if (!program)
+        return;
+
+    int maskedCount[APPROX_MASK_COUNT];
+    int remCount;
+
+    // serial calculation, this is too short for parallelization
+    for (uint16_t mask = 1; mask <= 255; mask++)
+    {
+        remCount = (valueCount / 8);
+        maskedCount[mask] = remCount * mask_weights[mask];
+        for (int i = 0; i < valueCount - remCount * 8; i++)
+            maskedCount[mask] += (mask >> (7 - i)) & 1;
+    }
+
+    void* vals_cp;
+    int vals_size;
+
+    // we have to copy values to intermediate array since we are not sure the GPU supports double precision
+    // also we cannot "copy" double to float at binary level due to different sizes and schemas
+    // and finally, we use this monstrosity to avoid passing array of structure instances to OpenCL program
+    if (clSupportsDouble())
+    {
+        vals_size = sizeof(double);
+        vals_cp = new double[valueCount * 2];
+        double* vals_cp_typed = reinterpret_cast<double*>(vals_cp);
+        for (int i = 0; i < valueCount; i++)
+        {
+            vals_cp_typed[i * 2 + 0] = values[i].datetime;
+            vals_cp_typed[i * 2 + 1] = values[i].level;
+        }
+    }
+    else
+    {
+        vals_size = sizeof(float);
+        vals_cp = new float[valueCount * 2];
+        float* vals_cp_typed = reinterpret_cast<float*>(vals_cp);
+        for (int i = 0; i < valueCount; i++)
+        {
+            vals_cp_typed[i * 2 + 0] = values[i].datetime;
+            vals_cp_typed[i * 2 + 1] = values[i].level;
+        }
+    }
+
+    // read-only parameters
+    cl_mem mask_weights_m = clCreateBuffer(program->context, CL_MEM_READ_ONLY, APPROX_MASK_COUNT * sizeof(int), NULL, &ret);
+    cl_mem mask_index_transform_m = clCreateBuffer(program->context, CL_MEM_READ_ONLY, APPROX_MASK_COUNT * 8 * sizeof(int), NULL, &ret);
+    cl_mem values_m = clCreateBuffer(program->context, CL_MEM_READ_ONLY, valueCount * 2 * vals_size, NULL, &ret);
+    cl_mem masked_counts_m = clCreateBuffer(program->context, CL_MEM_READ_ONLY, APPROX_MASK_COUNT * sizeof(int), NULL, &ret);
+
+    // write-only parameters
+    cl_mem ders_m = clCreateBuffer(program->context, CL_MEM_WRITE_ONLY, (valueCount + 4) * APPROX_MASK_COUNT * vals_size, NULL, &ret);
+    cl_mem a0_m = clCreateBuffer(program->context, CL_MEM_WRITE_ONLY, valueCount * APPROX_MASK_COUNT * vals_size, NULL, &ret);
+    cl_mem a1_m = clCreateBuffer(program->context, CL_MEM_WRITE_ONLY, valueCount * APPROX_MASK_COUNT * vals_size, NULL, &ret);
+    cl_mem a2_m = clCreateBuffer(program->context, CL_MEM_WRITE_ONLY, valueCount * APPROX_MASK_COUNT * vals_size, NULL, &ret);
+    cl_mem a3_m = clCreateBuffer(program->context, CL_MEM_WRITE_ONLY, valueCount * APPROX_MASK_COUNT * vals_size, NULL, &ret);
+
+    // copy local data to GPU memory
+    ret = clEnqueueWriteBuffer(program->commandQueue, mask_weights_m, CL_TRUE, 0, APPROX_MASK_COUNT * sizeof(int), mask_weights, 0, NULL, NULL);
+    ret = clEnqueueWriteBuffer(program->commandQueue, mask_index_transform_m, CL_TRUE, 0, APPROX_MASK_COUNT * 8 * sizeof(int), mask_index_transform, 0, NULL, NULL);
+    ret = clEnqueueWriteBuffer(program->commandQueue, values_m, CL_TRUE, 0, valueCount * 2 * vals_size, vals_cp, 0, NULL, NULL);
+    ret = clEnqueueWriteBuffer(program->commandQueue, masked_counts_m, CL_TRUE, 0, APPROX_MASK_COUNT, maskedCount, 0, NULL, NULL);
+
+    ///////////////////////////// derivatives calculation /////////////////////////////
+
+    // create OpenCL kernel for derivatives calculation
+    cl_kernel kernel = clCreateKernel(program->prog, "akima_calc_derivatives", &ret);
+
+    // set the arguments
+    ret = clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&mask_weights_m);
+    ret = clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&mask_index_transform_m);
+    ret = clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&ders_m);
+    ret = clSetKernelArg(kernel, 3, sizeof(cl_mem), (void *)&values_m);
+    ret = clSetKernelArg(kernel, 4, sizeof(int), &valueCount);
+
+    // work!
+    size_t global_item_size[] = { APPROX_MASK_COUNT, valueCount };
+    size_t local_item_size[] = { 1, valueCount };
+    ret = clEnqueueNDRangeKernel(program->commandQueue, kernel, 2, NULL, global_item_size, local_item_size, 0, NULL, NULL);
+
+    ////////////////////// derivatives boundary values calculation ////////////////////
+
+    ret = clReleaseKernel(kernel);
+
+    kernel = clCreateKernel(program->prog, "akima_fill_boundary_derivatives", &ret);
+    ret = clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&ders_m);
+    ret = clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&masked_counts_m);
+    ret = clSetKernelArg(kernel, 2, sizeof(int), &valueCount);
+
+    size_t global_item_size2 = APPROX_MASK_COUNT;
+    size_t local_item_size2 = 16;
+    ret = clEnqueueNDRangeKernel(program->commandQueue, kernel, 1, NULL, &global_item_size2, &local_item_size2, 0, NULL, NULL);
+
+    ///////////////////////////// parameters calculation //////////////////////////////
+
+    ret = clReleaseKernel(kernel);
+
+    kernel = clCreateKernel(program->prog, "akima_calc_parameters", &ret);
+    ret = clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&mask_weights_m);
+    ret = clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&mask_index_transform_m);
+    ret = clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&ders_m);
+    ret = clSetKernelArg(kernel, 3, sizeof(cl_mem), (void *)&values_m);
+    ret = clSetKernelArg(kernel, 4, sizeof(int), &valueCount);
+    ret = clSetKernelArg(kernel, 5, sizeof(cl_mem), (void *)&a0_m);
+    ret = clSetKernelArg(kernel, 6, sizeof(cl_mem), (void *)&a1_m);
+    ret = clSetKernelArg(kernel, 7, sizeof(cl_mem), (void *)&a2_m);
+    ret = clSetKernelArg(kernel, 8, sizeof(cl_mem), (void *)&a3_m);
+
+    size_t global_item_size3[] = { APPROX_MASK_COUNT, valueCount };
+    size_t local_item_size3[] = { 1, valueCount };
+    ret = clEnqueueNDRangeKernel(program->commandQueue, kernel, 2, NULL, global_item_size3, local_item_size3, 0, NULL, NULL);
+
+
+
+    // resize destination vectors
+    for (int mask = 0; mask < APPROX_MASK_COUNT; mask++)
+    {
+        a0Coefs[mask].resize(valueCount);
+        a1Coefs[mask].resize(valueCount);
+        a2Coefs[mask].resize(valueCount);
+        a3Coefs[mask].resize(valueCount);
+    }
+
+    // copy calculated parameters to inner vectors to make further value calculation possible
+    // also distinguish by floating point number length (precision)
+    if (clSupportsDouble())
+    {
+        double *tmp = new double[valueCount * APPROX_MASK_COUNT];
+        ret = clEnqueueReadBuffer(program->commandQueue, a0_m, CL_TRUE, 0, valueCount * APPROX_MASK_COUNT * vals_size, tmp, 0, NULL, NULL);
+
+        for (int mask = 0; mask < APPROX_MASK_COUNT; mask++)
+            for (int j = 0; j < valueCount; j++)
+                a0Coefs[mask][j] = tmp[mask * valueCount + j];
+
+        ret = clEnqueueReadBuffer(program->commandQueue, a1_m, CL_TRUE, 0, valueCount * APPROX_MASK_COUNT * vals_size, tmp, 0, NULL, NULL);
+
+        for (int mask = 0; mask < APPROX_MASK_COUNT; mask++)
+            for (int j = 0; j < valueCount; j++)
+                a1Coefs[mask][j] = tmp[mask * valueCount + j];
+
+        ret = clEnqueueReadBuffer(program->commandQueue, a2_m, CL_TRUE, 0, valueCount * APPROX_MASK_COUNT * vals_size, tmp, 0, NULL, NULL);
+
+        for (int mask = 0; mask < APPROX_MASK_COUNT; mask++)
+            for (int j = 0; j < valueCount; j++)
+                a2Coefs[mask][j] = tmp[mask * valueCount + j];
+
+        ret = clEnqueueReadBuffer(program->commandQueue, a3_m, CL_TRUE, 0, valueCount * APPROX_MASK_COUNT * vals_size, tmp, 0, NULL, NULL);
+
+        for (int mask = 0; mask < APPROX_MASK_COUNT; mask++)
+            for (int j = 0; j < valueCount; j++)
+                a3Coefs[mask][j] = tmp[mask * valueCount + j];
+
+        free(tmp);
+    }
+    else
+    {
+        float *tmp = new float[valueCount * APPROX_MASK_COUNT];
+        ret = clEnqueueReadBuffer(program->commandQueue, a0_m, CL_TRUE, 0, valueCount * APPROX_MASK_COUNT * vals_size, tmp, 0, NULL, NULL);
+
+        for (int mask = 0; mask < APPROX_MASK_COUNT; mask++)
+            for (int j = 0; j < valueCount; j++)
+                a0Coefs[mask][j] = (double)tmp[mask * valueCount + j];
+
+        ret = clEnqueueReadBuffer(program->commandQueue, a1_m, CL_TRUE, 0, valueCount * APPROX_MASK_COUNT * vals_size, tmp, 0, NULL, NULL);
+
+        for (int mask = 0; mask < APPROX_MASK_COUNT; mask++)
+            for (int j = 0; j < valueCount; j++)
+                a1Coefs[mask][j] = (double)tmp[mask * valueCount + j];
+
+        ret = clEnqueueReadBuffer(program->commandQueue, a2_m, CL_TRUE, 0, valueCount * APPROX_MASK_COUNT * vals_size, tmp, 0, NULL, NULL);
+
+        for (int mask = 0; mask < APPROX_MASK_COUNT; mask++)
+            for (int j = 0; j < valueCount; j++)
+                a2Coefs[mask][j] = (double)tmp[mask * valueCount + j];
+
+        ret = clEnqueueReadBuffer(program->commandQueue, a3_m, CL_TRUE, 0, valueCount * APPROX_MASK_COUNT * vals_size, tmp, 0, NULL, NULL);
+
+        for (int mask = 0; mask < APPROX_MASK_COUNT; mask++)
+            for (int j = 0; j < valueCount; j++)
+                a3Coefs[mask][j] = (double)tmp[mask * valueCount + j];
+
+        free(tmp);
+    }
+
+    // flush and release local resources
+
+    ret = clFlush(program->commandQueue);
+    ret = clFinish(program->commandQueue);
+    ret = clReleaseKernel(kernel);
+    ret = clReleaseMemObject(mask_weights_m);
+    ret = clReleaseMemObject(mask_index_transform_m);
+    ret = clReleaseMemObject(values_m);
+    ret = clReleaseMemObject(masked_counts_m);
+    ret = clReleaseMemObject(ders_m);
+}
+
 HRESULT IfaceCalling ApproxAkimaSpline::Approximate(TApproximationParams *params)
 {
     uint32_t mask;
@@ -497,6 +701,10 @@ HRESULT IfaceCalling ApproxAkimaSpline::Approximate(TApproximationParams *params
     else if (appConcurrency == ConcurrencyType::ct_parallel_tbb)
     {
         CalculateParameters_TBB();
+    }
+    else if (appConcurrency == ConcurrencyType::ct_parallel_opencl)
+    {
+        CalculateParameters_OpenCL();
     }
 
     return S_OK;
