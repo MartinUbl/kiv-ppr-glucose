@@ -11,13 +11,17 @@
 #include "TestOutput.h"
 
 // concurrency used for calculations
-ConcurrencyType appConcurrency = ConcurrencyType::ct_serial;
+ConcurrencyType appConcurrency;
 // selected approximation method
-size_t appApproxMethod = 0;
+size_t appApproxMethod;
 // worker count (if the method needs it)
-size_t appWorkerCount = 1;
+size_t appWorkerCount;
 // console output enabled?
-bool appSilentMode = false;
+bool appSilentMode;
+// input filename
+std::string appInputFilename;
+// loader type
+LoaderType appLoaderType;
 
 // should we create testing SVG output? (1 = true, anything else = false)
 #define DEBUG_SVG_PRINT 0
@@ -38,36 +42,178 @@ static floattype reduceLevels(CGlucoseLevels* lvls)
     return reducer;
 }
 
+static void printHelp(const char* progname)
+{
+    // extract program name
+    std::string fname = progname;
+    size_t p = fname.find_last_of('\\');
+    if (p != std::string::npos)
+        fname = fname.substr(p + 1);
+    p = fname.find_last_of('/');
+    if (p != std::string::npos)
+        fname = fname.substr(p + 1);
+
+    std::cout << "Usage: " << fname.c_str() << " -i <input filename> -m <method name> -c <concurrency type> [-id <storage driver>] [-w <worker count>] [-s] " << std::endl;
+    std::cout << std::endl;
+    std::cout << "Available methods: quadratic (q) - quadratic spline" << std::endl;
+    std::cout << "                   akima (a) - akima spline" << std::endl;
+    std::cout << "                   ??? (?) - ?" << std::endl;
+    std::cout << std::endl;
+    std::cout << "Available concurrency: serial (s) - serial version" << std::endl;
+    std::cout << "                       threads (t) - standard C++ threads" << std::endl;
+    std::cout << "                       tbb - Intel TBB" << std::endl;
+    std::cout << "                       opencl (cl) - OpenCL" << std::endl;
+    std::cout << std::endl;
+    std::cout << "Available input drivers: sqlite - SQLite3 driver" << std::endl;
+    std::cout << std::endl;
+}
+
+size_t parseApproxMethod(const char* str)
+{
+    if (strcmp(str, "quadratic") == 0 || strcmp(str, "q") == 0)
+        return apxmQuadraticSpline;
+    else if (strcmp(str, "akima") == 0 || strcmp(str, "a") == 0)
+        return apxmAkimaSpline;
+
+    return 0;
+}
+
+ConcurrencyType parseConcurrencyType(const char* str)
+{
+    if (strcmp(str, "serial") == 0 || strcmp(str, "s") == 0)
+        return ConcurrencyType::ct_serial;
+    else if (strcmp(str, "tbb") == 0)
+        return ConcurrencyType::ct_parallel_tbb;
+    else if (strcmp(str, "threads") == 0 || strcmp(str, "t") == 0)
+        return ConcurrencyType::ct_parallel_threads;
+    else if (strcmp(str, "opencl") == 0 || strcmp(str, "cl") == 0)
+        return ConcurrencyType::ct_parallel_opencl;
+    //else if (strcmp(str, "cppamp") == 0 || strcmp(str, "amp") == 0)
+    //    return ConcurrencyType::ct_parallel_amp_gpu;
+
+    return ConcurrencyType::ct_none;
+}
+
+int parseCLIArgs(int argc, char** argv)
+{
+    // 1 program name, 3 parameters, 3 values
+    if (argc < 7)
+        return 1;
+
+    appInputFilename = "";
+    appApproxMethod = 0;
+    appConcurrency = ConcurrencyType::ct_none;
+    appLoaderType = LoaderType::UnknownLoaderType;
+    appSilentMode = false;
+    appWorkerCount = 1;
+
+    for (int i = 1; i < argc; i++)
+    {
+        if (strcmp(argv[i], "-i") == 0)
+        {
+            if (i < argc - 1)
+            {
+                appInputFilename = argv[i + 1];
+                i++;
+            }
+            else
+                std::cerr << "No filename specified after -i parameter." << std::endl;
+        }
+        else if (strcmp(argv[i], "-m") == 0)
+        {
+            if (i < argc - 1)
+            {
+                appApproxMethod = parseApproxMethod(argv[i + 1]);
+                if (appApproxMethod == 0)
+                    std::cerr << "Invalid approximation/interpolation method '" << argv[i + 1] << "' specified." << std::endl;
+            }
+            else
+                std::cerr << "No approximation/interpolation method specified after -m parameter." << std::endl;
+        }
+        else if (strcmp(argv[i], "-c") == 0)
+        {
+            if (i < argc - 1)
+            {
+                appConcurrency = parseConcurrencyType(argv[i + 1]);
+                if (appConcurrency == ConcurrencyType::ct_none)
+                    std::cerr << "Invalid concurrency '" << argv[i + 1] << "' specified." << std::endl;
+            }
+            else
+                std::cerr << "No concurrency type specified after -c parameter." << std::endl;
+        }
+        else if (strcmp(argv[i], "-id") == 0)
+        {
+            if (i < argc - 1)
+            {
+                appLoaderType = ((strcmp(argv[i + 1], "sqlite") == 0) ? LoaderType::SQLiteLoaderType : LoaderType::UnknownLoaderType);
+                if (appLoaderType == LoaderType::UnknownLoaderType)
+                    std::cerr << "Invalid storage driver '" << argv[i + 1] << "' specified." << std::endl;
+            }
+            else
+                std::cerr << "No storage driver specified after -id parameter." << std::endl;
+        }
+        else if (strcmp(argv[i], "-w") == 0)
+        {
+            if (i < argc - 1)
+            {
+                char* endptr;
+                appWorkerCount = std::strtoul(argv[i + 1], &endptr, 10);
+                if (appWorkerCount <= 0 || appWorkerCount > MAX_APP_WORKER_COUNT)
+                    std::cerr << "Invalid worker count '" << argv[i + 1] << "' specified (must be number in range 1 - " << MAX_APP_WORKER_COUNT << "." << std::endl;
+            }
+            else
+                std::cerr << "No worker count specified after -w parameter." << std::endl;
+        }
+        else if (strcmp(argv[i], "-s") == 0)
+        {
+            appSilentMode = true;
+        }
+    }
+
+    return 0;
+}
+
 int main(int argc, char** argv)
 {
-    // TODO: load approx method from command line parameters
-    appApproxMethod = apxmQuadraticSpline;
-
-    // TODO: load concurrency type from command line parameters
-    appConcurrency = ConcurrencyType::ct_parallel_opencl;
-
-    // TODO: load worker count from command line parameters
-    appWorkerCount = 4;
-
-    // TODO: load silent mode parameter from command line parameters
-    appSilentMode = false;
+    // parse input parameters
+    if (parseCLIArgs(argc, argv) != 0)
+    {
+        printHelp(argv[0]);
+        return 1;
+    }
 
     // Load parameters - fow now use just SQLite loader
-    SQLiteLoader ldr;
-    HRESULT res = ldr.InitLoader({
-        LoaderType::SQLiteLoaderType,
+    ILoader* ldr = nullptr;
+
+    if (appLoaderType == LoaderType::SQLiteLoaderType)
+        ldr = new SQLiteLoader();
+    else
+    {
+        std::cerr << "Unsupported loader type." << std::endl;
+        return 2;
+    }
+
+    // instantiate loader
+    HRESULT res = ldr->InitLoader({
+        appLoaderType,
         {
-            "../../data/direcnet.sqlite"
+            appInputFilename.c_str()
         }
     });
+
+    // loader initialization succeeded?
+    if (res == S_FALSE)
+    {
+        std::cerr << "Failed to load file " << appInputFilename.c_str() << " - invalid file format or file not found." << std::endl;
+        return 3;
+    }
 
     if (!appSilentMode)
         std::cout << "Loading values from storage..." << std::endl;
 
+    // load values from storage
     std::vector<CGlucoseLevels*> vec;
-    res = ldr.LoadGlucoseLevels(vec);
-
-    const floattype timestart = 0.0;
+    res = ldr->LoadGlucoseLevels(vec);
 
     // if we use OpenCL concurrency type, preload programs before actual calculation
     if (appConcurrency == ConcurrencyType::ct_parallel_opencl)
@@ -82,12 +228,7 @@ int main(int argc, char** argv)
         }
     }
 
-    CCommonApprox* apx = new ApproxAkimaSpline(vec[0]);
-    apx->Approximate(nullptr);
-
     clock_t tmStart = clock();
-
-    uint64_t totalCount = 0;
 
     if (!appSilentMode)
         std::cout << "Processing " << vec.size() << " segments..." << std::endl;
@@ -101,7 +242,7 @@ int main(int argc, char** argv)
         floattype reducedBy = reduceLevels(vec[i]);
 
         CCommonApprox* apx;
-        // approximate!
+        // instantiate approximation / interpolation method class and work!
         if (appApproxMethod == apxmQuadraticSpline)
             apx = new ApproxQuadraticSpline(vec[i]);
         else if (appApproxMethod == apxmAkimaSpline)
@@ -121,7 +262,7 @@ int main(int argc, char** argv)
         const floattype step = 5.0 / (24.0*60.0*granularity);
 
         // retrieve approximated levels
-        apx->GetLevels(timestart, step, levcount, levels, &filled, 0);
+        apx->GetLevels(0.0, step, levcount, levels, &filled, 0);
 
         if (i == 0)
         {
@@ -141,7 +282,7 @@ int main(int argc, char** argv)
     if (!appSilentMode)
         std::cout << "Done. Elapsed: " << tmTotal << "ms" << std::endl;
 
-    ldr.Finalize();
+    ldr->Finalize();
 
     // if we use OpenCL concurrency type, erase preloaded programs
     if (appConcurrency == ConcurrencyType::ct_parallel_opencl)

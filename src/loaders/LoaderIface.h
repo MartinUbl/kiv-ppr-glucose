@@ -9,6 +9,7 @@ class CGlucoseLevels;
 // implemented loader types
 enum class LoaderType
 {
+    UnknownLoaderType,  // dummy value - no loader or unknown
     SQLiteLoaderType,   // SQLite3 loader
 };
 
