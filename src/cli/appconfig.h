@@ -26,5 +26,6 @@ typedef struct
 
 // available OpenCL kernel files
 const clProgramLocator clPrograms[] = {
+    { apxmQuadraticSpline, "ApproxQuadraticSpline.cl" },
     { apxmAkimaSpline, "ApproxAkimaSpline.cl" }
 };

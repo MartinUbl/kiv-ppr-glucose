@@ -41,7 +41,7 @@ static floattype reduceLevels(CGlucoseLevels* lvls)
 int main(int argc, char** argv)
 {
     // TODO: load approx method from command line parameters
-    appApproxMethod = apxmAkimaSpline;
+    appApproxMethod = apxmQuadraticSpline;
 
     // TODO: load concurrency type from command line parameters
     appConcurrency = ConcurrencyType::ct_parallel_opencl;
