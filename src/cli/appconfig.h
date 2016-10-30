@@ -31,7 +31,7 @@ extern std::string appInputFilename;
 extern LoaderType appLoaderType;
 
 // current testing mask
-extern int appCurrentTestMask;
+extern uint8_t appCurrentTestMask;
 
 typedef struct
 {

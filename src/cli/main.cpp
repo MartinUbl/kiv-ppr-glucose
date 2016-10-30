@@ -7,6 +7,7 @@
 #include "../approx/src/ApproxAkimaSpline.h"
 #include "appconfig.h"
 #include "OpenCLLoader.h"
+#include "Statistics.h"
 
 #include "TestOutput.h"
 
@@ -24,10 +25,10 @@ std::string appInputFilename;
 LoaderType appLoaderType;
 
 // current testing mask
-int appCurrentTestMask;
+uint8_t appCurrentTestMask;
 
 // should we create testing SVG output? (1 = true, anything else = false)
-#define DEBUG_SVG_PRINT 0
+#define DEBUG_SVG_PRINT 1
 
 // reduces all times by minimum of all times - causes less precision loss
 static floattype reduceLevels(CGlucoseLevels* lvls)
@@ -242,10 +243,11 @@ int main(int argc, char** argv)
         std::cout << "Preparing approximation structures..." << std::endl;
 
     std::vector<CCommonApprox*> approxVect(vec.size());
+    std::vector<floattype> reduceAmount(vec.size());
     for (size_t i = 0; i < vec.size(); i++)
     {
         // reduce times to not lose precision so rapidly
-        floattype reducedBy = reduceLevels(vec[i]);
+        reduceAmount[i] = reduceLevels(vec[i]);
 
         if (appApproxMethod == apxmQuadraticSpline)
             approxVect[i] = new ApproxQuadraticSpline(vec[i]);
@@ -266,24 +268,25 @@ int main(int argc, char** argv)
         approxVect[i]->Approximate(nullptr);
 
 #if DEBUG_SVG_PRINT == 1
-        // some testing values for output
-        size_t levcount = 4768;
-        size_t filled;
-        floattype* levels = new floattype[levcount];
-
-        const floattype granularity = 16.0;
-        const floattype step = 5.0 / (24.0*60.0*granularity);
-
-        // retrieve approximated levels
-        approxVect[i]->GetLevels(0.0, step, levcount, levels, &filled, 0);
-
         if (i == 0)
         {
+            appCurrentTestMask = 63;
+            // some testing values for output
+            size_t levcount = 768;
+            size_t filled;
+            floattype* levels = new floattype[levcount];
+
+            const floattype granularity = 16.0;
+            const floattype step = 5.0 / (24.0*60.0*granularity);
+
+            // retrieve approximated levels
+            approxVect[i]->GetLevels(0.0, step, levcount, levels, &filled, 0);
+
             TGlucoseLevel* levs;
             vec[i]->GetLevels(&levs);
 
             // visualize to some easy format, SVG should be nice
-            VisualizeSVG("test.svg", timestart, step, levcount, levels, levs, false);
+            VisualizeSVG("test.svg", 0.0, step, levcount, levels, levs, false);
         }
 #endif
     }
@@ -307,7 +310,7 @@ int main(int argc, char** argv)
     if (!appSilentMode)
         std::cout << std::endl << "Done calculating parameters. Calculating statistics..." << std::endl;
 
-    // TODO: statistics
+    CalculateAndPrintStats(vec, approxVect);
 
     return 0;
 }

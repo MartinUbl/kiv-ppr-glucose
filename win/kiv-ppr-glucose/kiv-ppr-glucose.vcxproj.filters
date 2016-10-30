@@ -65,6 +65,9 @@
     <ClCompile Include="..\..\src\cli\OpenCLLoader.cpp">
       <Filter>src\cli</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\cli\Statistics.cpp">
+      <Filter>src\cli</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\approx\src\CommonApprox.h">
@@ -113,6 +116,9 @@
       <Filter>src\approx\src</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\cli\OpenCLLoader.h">
+      <Filter>src\cli</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\cli\Statistics.h">
       <Filter>src\cli</Filter>
     </ClInclude>
   </ItemGroup>

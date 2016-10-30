@@ -144,6 +144,7 @@
     <ClCompile Include="..\..\src\approx\src\GlucoseLevels.cpp" />
     <ClCompile Include="..\..\src\cli\main.cpp" />
     <ClCompile Include="..\..\src\cli\OpenCLLoader.cpp" />
+    <ClCompile Include="..\..\src\cli\Statistics.cpp" />
     <ClCompile Include="..\..\src\cli\TestOutput.cpp" />
     <ClCompile Include="..\..\src\common\iface\ApproxIface.cpp" />
     <ClCompile Include="..\..\src\common\rtl\referencedImpl.cpp" />
@@ -158,6 +159,7 @@
     <ClInclude Include="..\..\src\approx\src\precalculated.h" />
     <ClInclude Include="..\..\src\cli\appconfig.h" />
     <ClInclude Include="..\..\src\cli\OpenCLLoader.h" />
+    <ClInclude Include="..\..\src\cli\Statistics.h" />
     <ClInclude Include="..\..\src\cli\TestOutput.h" />
     <ClInclude Include="..\..\src\common\iface\ApproxIface.h" />
     <ClInclude Include="..\..\src\common\iface\referencedIface.h" />

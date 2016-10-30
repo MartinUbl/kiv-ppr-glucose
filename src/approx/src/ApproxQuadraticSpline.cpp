@@ -270,9 +270,8 @@ HRESULT IfaceCalling ApproxQuadraticSpline::Approximate(TApproximationParams *pa
 
 HRESULT IfaceCalling ApproxQuadraticSpline::GetLevels(floattype desiredtime, floattype stepping, size_t count, floattype *levels, size_t *filled, size_t derivationorder)
 {
-    // desired mask to be retrieved, full mask for now
-    // this should not be here after testing stage
-    const uint8_t mask = 0xFF;
+    // desired mask to be retrieved
+    const uint8_t mask = appCurrentTestMask;
 
     HRESULT res;
     size_t index;

@@ -39,7 +39,7 @@ class ApproxAkimaSpline : public CCommonApprox
         void CalculateParameters_OpenCL();
 
         // retrieves index of closest value in glucose levels
-        HRESULT GetIndexFor(floattype time, size_t &index);
+        HRESULT GetIndexFor(floattype time, size_t &index, size_t &origIndex, uint8_t mask = 0xFF);
 
         // akima spline coefficients
         std::vector<floattype> a0Coefs[APPROX_MASK_COUNT], a1Coefs[APPROX_MASK_COUNT], a2Coefs[APPROX_MASK_COUNT], a3Coefs[APPROX_MASK_COUNT];

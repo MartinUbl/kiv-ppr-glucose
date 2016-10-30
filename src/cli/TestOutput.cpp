@@ -20,7 +20,7 @@ void VisualizeSVG(const char* filename, floattype starttime, floattype step, siz
 
         floattype base = levs[0].datetime * stretchCoefX;
 
-        for (size_t i = 0; i < 348; i++)
+        for (size_t i = 0; i < 48; i++)
         {
             if (consoleout)
                 std::cout << "Original time: " << levs[i].datetime - base << ", value: " << levs[i].level << std::endl;
