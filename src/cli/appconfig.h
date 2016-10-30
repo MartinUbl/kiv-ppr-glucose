@@ -30,6 +30,9 @@ extern std::string appInputFilename;
 // loader type
 extern LoaderType appLoaderType;
 
+// current testing mask
+extern int appCurrentTestMask;
+
 typedef struct
 {
     size_t apxMethod;

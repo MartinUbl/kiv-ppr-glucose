@@ -23,6 +23,9 @@ std::string appInputFilename;
 // loader type
 LoaderType appLoaderType;
 
+// current testing mask
+int appCurrentTestMask;
+
 // should we create testing SVG output? (1 = true, anything else = false)
 #define DEBUG_SVG_PRINT 0
 
@@ -100,10 +103,11 @@ int parseCLIArgs(int argc, char** argv)
     if (argc < 7)
         return 1;
 
+    // load defaults
     appInputFilename = "";
     appApproxMethod = 0;
     appConcurrency = ConcurrencyType::ct_none;
-    appLoaderType = LoaderType::UnknownLoaderType;
+    appLoaderType = LoaderType::SQLiteLoaderType;
     appSilentMode = false;
     appWorkerCount = 1;
 
@@ -170,6 +174,12 @@ int parseCLIArgs(int argc, char** argv)
         }
     }
 
+    if (appInputFilename == "" || appApproxMethod == 0 || appConcurrency == ConcurrencyType::ct_none)
+    {
+        std::cerr << "Not enough parameters specified" << std::endl;
+        return 4;
+    }
+
     return 0;
 }
 
@@ -228,6 +238,21 @@ int main(int argc, char** argv)
         }
     }
 
+    if (!appSilentMode)
+        std::cout << "Preparing approximation structures..." << std::endl;
+
+    std::vector<CCommonApprox*> approxVect(vec.size());
+    for (size_t i = 0; i < vec.size(); i++)
+    {
+        // reduce times to not lose precision so rapidly
+        floattype reducedBy = reduceLevels(vec[i]);
+
+        if (appApproxMethod == apxmQuadraticSpline)
+            approxVect[i] = new ApproxQuadraticSpline(vec[i]);
+        else if (appApproxMethod == apxmAkimaSpline)
+            approxVect[i] = new ApproxAkimaSpline(vec[i]);
+    }
+
     clock_t tmStart = clock();
 
     if (!appSilentMode)
@@ -238,19 +263,7 @@ int main(int argc, char** argv)
         if (!appSilentMode)
             std::cout << "Processing segment " << (i+1) << " / " << vec.size() << "..." << std::endl;
 
-        // reduce times to not lose precision so rapidly
-        floattype reducedBy = reduceLevels(vec[i]);
-
-        CCommonApprox* apx;
-        // instantiate approximation / interpolation method class and work!
-        if (appApproxMethod == apxmQuadraticSpline)
-            apx = new ApproxQuadraticSpline(vec[i]);
-        else if (appApproxMethod == apxmAkimaSpline)
-            apx = new ApproxAkimaSpline(vec[i]);
-        else
-            break;
-
-        apx->Approximate(nullptr);
+        approxVect[i]->Approximate(nullptr);
 
 #if DEBUG_SVG_PRINT == 1
         // some testing values for output
@@ -262,7 +275,7 @@ int main(int argc, char** argv)
         const floattype step = 5.0 / (24.0*60.0*granularity);
 
         // retrieve approximated levels
-        apx->GetLevels(0.0, step, levcount, levels, &filled, 0);
+        approxVect[i]->GetLevels(0.0, step, levcount, levels, &filled, 0);
 
         if (i == 0)
         {
@@ -273,8 +286,6 @@ int main(int argc, char** argv)
             VisualizeSVG("test.svg", timestart, step, levcount, levels, levs, false);
         }
 #endif
-
-        delete apx;
     }
 
     clock_t tmTotal = (clock_t)(1000.0f * (float)(clock() - tmStart) / (float)CLOCKS_PER_SEC);
@@ -292,6 +303,11 @@ int main(int argc, char** argv)
 
         FinalizeCLPrograms();
     }
+
+    if (!appSilentMode)
+        std::cout << std::endl << "Done calculating parameters. Calculating statistics..." << std::endl;
+
+    // TODO: statistics
 
     return 0;
 }
