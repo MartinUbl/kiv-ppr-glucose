@@ -17,7 +17,7 @@ void ApproxAkimaSpline::CalculateParametersForMask(const uint32_t mask)
 {
     // shifting base for mask-based calculation
     size_t base;
-    // offsets of shifted values (used for fast lookup) (one extra to avoid division by 8 in loop)
+    // offsets of shifted values (used for fast lookup)
     const int *offsets = mask_shift_base[mask];
 
     size_t i, j;
@@ -27,10 +27,10 @@ void ApproxAkimaSpline::CalculateParametersForMask(const uint32_t mask)
     size_t maskedCount;
     size_t remCount;
 
-    floattype tmpWeight1, tmpWeight2;
+    floattype tmpWeight1, tmpWeight2, wsum;
     floattype* m;
 
-    remCount = (valueCount / 8);
+    remCount = valueCount >> 3; //(valueCount / 8);
     maskedCount = remCount * mask_weights[mask];
     for (i = 0; i < valueCount - remCount * 8; i++)
         maskedCount += (mask >> (7 - i)) & 1;
@@ -83,31 +83,39 @@ void ApproxAkimaSpline::CalculateParametersForMask(const uint32_t mask)
         if (base + offsets[j] > valueCount || base + offsets[j + 1] > valueCount)
             break;
 
-        const floattype wsum1 = fabs(m[i + 1] - m[i]) + fabs(m[i - 1] - m[i - 2]);
+        // this condition is unnecessary when calculating using measured values; this is needed
+        // when two pairs of consecutive derivations are equal (A A B B), which is highly unlikely to happen.
+        // Furthermore, omitting this condition does not break safety - the two conditions in "else" body
+        // are in fact checking the same thing separatelly
+        /*const floattype wsum1 = fabs(m[i + 1] - m[i]) + fabs(m[i - 1] - m[i - 2]);
         if (wsum1 == 0)
         {
             a1Coefs[mask][i] = m[i];
             a2Coefs[mask][i] = 0;
             a3Coefs[mask][i] = 0;
         }
-        else
+        else*/
         {
             const floattype deltax = values[base + offsets[j + 1]].datetime - values[base + offsets[j]].datetime;
 
-            tmpWeight1 = fabs(m[i + 1] - m[i]);     // w_i+1
-            tmpWeight2 = fabs(m[i - 1] - m[i - 2]); // w_i-1
-
-            floattype wsum = tmpWeight1 + tmpWeight2;
-
-            if (wsum == 0)
+            if (i == 0)
             {
-                tmpWeight1 = 1.0;
-                tmpWeight2 = 1.0;
-                wsum = 2.0;
+                tmpWeight1 = fabs(m[i + 1] - m[i]);     // w_i+1
+                tmpWeight2 = fabs(m[i - 1] - m[i - 2]); // w_i-1
+
+                wsum = tmpWeight1 + tmpWeight2;
+
+                if (wsum == 0)
+                {
+                    tmpWeight1 = 1.0;
+                    tmpWeight2 = 1.0;
+                    wsum = 2.0;
+                }
+
+                a1Coefs[mask][i] = (tmpWeight1 * m[i - 1] + tmpWeight2 * m[i]) / wsum;
             }
 
             a0Coefs[mask][i] = values[base + offsets[j]].level;
-            a1Coefs[mask][i] = (tmpWeight1 * m[i - 1] + tmpWeight2 * m[i]) / wsum;
 
             tmpWeight1 = fabs(m[i + 1 + 1] - m[i + 1]);     // w_i+1
             tmpWeight2 = fabs(m[i - 1 + 1] - m[i - 2 + 1]); // w_i-1
@@ -122,6 +130,8 @@ void ApproxAkimaSpline::CalculateParametersForMask(const uint32_t mask)
             }
 
             const floattype nextA1 = (tmpWeight1 * m[i - 1 + 1] + tmpWeight2 * m[i + 1]) / wsum;
+            if (i + 1 < maskedCount - 1)
+                a1Coefs[mask][i + 1] = nextA1;
 
             a2Coefs[mask][i] = (3 * m[i] - 2 * a1Coefs[mask][i] - nextA1) / deltax;
             a3Coefs[mask][i] = (a1Coefs[mask][i] + nextA1 - 2 * m[i]) / (deltax * deltax);
@@ -222,20 +232,21 @@ void ApproxAkimaSpline::CalculateParameters_threads()
 
     for (i = 0; i < appWorkerCount; i++)
     {
-        workers[i] = new std::thread([&](ApproxAkimaSpline* obj) {
+        workers[i] = new std::thread([&]() {
             uint8_t mask;
             int32_t myWork;
             int pos, pos_n;
             while (thrWork.getWork(mask, myWork))
             {
-                pos = 8 * (myWork / mask_weights[mask]) + mask_index_transform[mask][myWork % mask_weights[mask]];
                 pos_n = 8 * ((myWork + 1) / mask_weights[mask]) + mask_index_transform[mask][(myWork + 1) % mask_weights[mask]];
 
-                if (pos >= valueCount || pos_n >= valueCount)
+                if (/*pos >= valueCount || */pos_n >= valueCount)
                     continue;
 
-                m[mask][myWork] = (obj->values[pos_n].level - obj->values[pos].level) /
-                                  (obj->values[pos_n].datetime - obj->values[pos].datetime);
+                pos = 8 * (myWork / mask_weights[mask]) + mask_index_transform[mask][myWork % mask_weights[mask]];
+
+                m[mask][myWork] = (values[pos_n].level - values[pos].level) /
+                                  (values[pos_n].datetime - values[pos].datetime);
             }
 
             // block on condition variable
@@ -251,24 +262,25 @@ void ApproxAkimaSpline::CalculateParameters_threads()
             floattype tmpWeight1, tmpWeight2;
             while (thrWork.getWork(mask, myWork))
             {
-                pos = 8 * (myWork / mask_weights[mask]) + mask_index_transform[mask][myWork % mask_weights[mask]];
                 pos_n = 8 * ((myWork + 1) / mask_weights[mask]) + mask_index_transform[mask][(myWork + 1) % mask_weights[mask]];
 
-                if (pos >= valueCount || pos_n >= valueCount)
+                if (/*pos >= valueCount || */pos_n >= valueCount)
                     continue;
 
-                floattype* mmask = m[mask];
+                pos = 8 * (myWork / mask_weights[mask]) + mask_index_transform[mask][myWork % mask_weights[mask]];
 
-                floattype wsum1 = fabs(mmask[myWork + 1] - mmask[myWork]) + fabs(mmask[myWork - 1] - mmask[myWork - 2]);
+                const floattype* const mmask = m[mask];
+
+                /*floattype wsum1 = fabs(mmask[myWork + 1] - mmask[myWork]) + fabs(mmask[myWork - 1] - mmask[myWork - 2]);
                 if (wsum1 == 0)
                 {
-                    obj->a1Coefs[mask][myWork] = mmask[myWork];
-                    obj->a2Coefs[mask][myWork] = 0;
-                    obj->a3Coefs[mask][myWork] = 0;
+                    a1Coefs[mask][myWork] = mmask[myWork];
+                    a2Coefs[mask][myWork] = 0;
+                    a3Coefs[mask][myWork] = 0;
                 }
-                else
+                else*/
                 {
-                    floattype deltax = obj->values[pos_n].datetime - obj->values[pos].datetime;
+                    floattype deltax = values[pos_n].datetime - values[pos].datetime;
 
                     tmpWeight1 = fabs(mmask[myWork + 1] - mmask[myWork]);     // w_i+1
                     tmpWeight2 = fabs(mmask[myWork - 1] - mmask[myWork - 2]); // w_i-1
@@ -282,8 +294,8 @@ void ApproxAkimaSpline::CalculateParameters_threads()
                         wsum = 2.0;
                     }
 
-                    obj->a0Coefs[mask][myWork] = obj->values[pos].level;
-                    obj->a1Coefs[mask][myWork] = (tmpWeight1 * mmask[myWork - 1] + tmpWeight2 * mmask[myWork]) / wsum;
+                    a0Coefs[mask][myWork] = values[pos].level;
+                    a1Coefs[mask][myWork] = (tmpWeight1 * mmask[myWork - 1] + tmpWeight2 * mmask[myWork]) / wsum;
 
                     tmpWeight1 = fabs(mmask[myWork + 1 + 1] - mmask[myWork + 1]);     // w_i+1
                     tmpWeight2 = fabs(mmask[myWork - 1 + 1] - mmask[myWork - 2 + 1]); // w_i-1
@@ -299,11 +311,11 @@ void ApproxAkimaSpline::CalculateParameters_threads()
 
                     const floattype nextA1 = (tmpWeight1 * mmask[myWork - 1 + 1] + tmpWeight2 * mmask[myWork + 1]) / wsum;
 
-                    obj->a2Coefs[mask][myWork] = (3 * mmask[myWork] - 2 * obj->a1Coefs[mask][myWork] - nextA1) / deltax;
-                    obj->a3Coefs[mask][myWork] = (obj->a1Coefs[mask][myWork] + nextA1 - 2 * mmask[myWork]) / (deltax * deltax);
+                    a2Coefs[mask][myWork] = (3 * mmask[myWork] - 2 * a1Coefs[mask][myWork] - nextA1) / deltax;
+                    a3Coefs[mask][myWork] = (a1Coefs[mask][myWork] + nextA1 - 2 * mmask[myWork]) / (deltax * deltax);
                 }
             }
-        }, this);
+        });
     }
 
     // barrier
@@ -346,116 +358,126 @@ void ApproxAkimaSpline::CalculateParameters_AMP()
 
 void ApproxAkimaSpline::CalculateParameters_TBB()
 {
-    int i;
-
     std::vector<floattype> derivations[APPROX_MASK_COUNT];
-
     size_t maskedCount[APPROX_MASK_COUNT];
-    size_t remCount;
-
     floattype* m[APPROX_MASK_COUNT];
 
-    // serial calculation, this is too short for parallelization
-    for (uint16_t mask = 1; mask <= 255; mask++)
-    {
-        remCount = (valueCount / 8);
+    // calculate masked counts
+    tbb::parallel_for(size_t(1), size_t(APPROX_MASK_COUNT) - 1, size_t(1), [&](size_t mask) {
+        size_t remCount = valueCount >> 3;// (valueCount / 8);
         maskedCount[mask] = remCount * mask_weights[mask];
-        for (i = 0; i < valueCount - remCount * 8; i++)
+        for (int i = 0; i < valueCount - remCount * 8; i++)
             maskedCount[mask] += (mask >> (7 - i)) & 1;
+    });
+    maskedCount[255] = valueCount;
 
-        // resize value vectors, we know how much values do we need
+    // resize value and derivation vectors, we know how much values do we need
+    tbb::parallel_for(size_t(1), size_t(APPROX_MASK_COUNT), size_t(1), [&](size_t mask) {
         a0Coefs[mask].resize(maskedCount[mask] - 1);
         a1Coefs[mask].resize(maskedCount[mask] - 1);
         a2Coefs[mask].resize(maskedCount[mask] - 1);
         a3Coefs[mask].resize(maskedCount[mask] - 1);
 
-        derivations[mask].clear();
         derivations[mask].resize(maskedCount[mask] + 4);
 
         m[mask] = &derivations[mask][2];
-    }
+    });
 
     // count derivations
     tbb::parallel_for(tbb::blocked_range2d<size_t, int>(1, APPROX_MASK_COUNT, 0, (int)valueCount), [&](const tbb::blocked_range2d<size_t, int> &idx) {
         size_t mask;
         int i, pos, pos_n;
 
+        const int workbegin = idx.cols().begin();
+
         // for each mask
         for (mask = idx.rows().begin(); mask < idx.rows().end(); mask++)
         {
+            const int limit = (int)min(idx.cols().end(), maskedCount[mask] - 1);
+            floattype* const mmask = m[mask];
+
             // for each value
-            for (i = idx.cols().begin(); i < idx.cols().end(); i++)
+            for (i = workbegin; i < limit; i++)
             {
-                pos = 8 * (i / mask_weights[mask]) + mask_index_transform[mask][i % mask_weights[mask]];
                 pos_n = 8 * ((i + 1) / mask_weights[mask]) + mask_index_transform[mask][(i + 1) % mask_weights[mask]];
 
-                if (pos >= valueCount || pos_n >= valueCount)
-                    continue;
+                if (/*pos >= valueCount || */pos_n >= valueCount) // pos_n always > pos, only the "stronger" condition needed
+                    break;
 
-                m[mask][i] = (values[pos_n].level - values[pos].level) /
+                pos = 8 * (i / mask_weights[mask]) + mask_index_transform[mask][i % mask_weights[mask]];
+
+                mmask[i] = (values[pos_n].level - values[pos].level) /
                              (values[pos_n].datetime - values[pos].datetime);
             }
         }
     });
 
     // calculate boundary derivatives
-    for (uint16_t mask = 1; mask < APPROX_MASK_COUNT; mask++)
-    {
-        floattype* mmask = m[mask];
+    tbb::parallel_for(size_t(1), size_t(APPROX_MASK_COUNT), size_t(1), [&](size_t mask) {
+        floattype* const mmask = m[mask];
         mmask[-1] = 2 * mmask[0] - mmask[1];
         mmask[-2] = 2 * mmask[-1] - mmask[0];
         mmask[maskedCount[mask] - 1] = 2 * mmask[maskedCount[mask] - 2] - mmask[maskedCount[mask] - 3];
         mmask[maskedCount[mask]] = 2 * mmask[maskedCount[mask] - 1] - mmask[maskedCount[mask] - 2];
-    }
+    });
 
     // count parameters
     tbb::parallel_for(tbb::blocked_range2d<size_t, int>(1, APPROX_MASK_COUNT, 0, (int)valueCount), [&](const tbb::blocked_range2d<size_t, int> &idx) {
         size_t mask;
-        volatile int i, pos, pos_n;
-        floattype tmpWeight1, tmpWeight2;
+        int i, pos, pos_n;
+        floattype tmpWeight1, tmpWeight2, wsum, deltax, nextA1;
+
+        const int workbegin = idx.cols().begin();
 
         // for each mask
         for (mask = idx.rows().begin(); mask < idx.rows().end(); mask++)
         {
+            const floattype* const mmask = m[mask];
+            const int limit = (int)min(idx.cols().end(), maskedCount[mask] - 1);
+
             // for each value
-            for (i = idx.cols().begin(); i < idx.cols().end(); i++)
+            for (i = workbegin; i < limit; i++)
             {
-                pos = 8 * (i / mask_weights[mask]) + mask_index_transform[mask][i % mask_weights[mask]];
                 pos_n = 8 * ((i + 1) / mask_weights[mask]) + mask_index_transform[mask][(i + 1) % mask_weights[mask]];
 
-                if (pos >= valueCount || pos_n >= valueCount)
-                    continue;
+                if (/*pos >= valueCount || */pos_n >= valueCount) // pos_n always > pos, only the "stronger" condition needed
+                    break;
 
-                floattype* mmask = m[mask];
+                pos = 8 * (i / mask_weights[mask]) + mask_index_transform[mask][i % mask_weights[mask]];
 
-                floattype wsum1 = fabs(mmask[i + 1] - mmask[i]) + fabs(mmask[i - 1] - mmask[i - 2]);
+                // this condition is unnecessary when calculating using measured values; this is needed
+                // when two pairs of consecutive derivations are equal (A A B B), which is highly unlikely to happen.
+                // Furthermore, omitting this condition does not break safety - the two conditions in "else" body
+                // are in fact checking the same thing separatelly
+                /*floattype wsum1 = fabs(mmask[i + 1] - mmask[i]) + fabs(mmask[i - 1] - mmask[i - 2]);
                 if (wsum1 == 0)
                 {
                     a1Coefs[mask][i] = mmask[i];
                     a2Coefs[mask][i] = 0;
                     a3Coefs[mask][i] = 0;
                 }
-                else
+                else*/
                 {
-                    floattype deltax = values[pos_n].datetime - values[pos].datetime;
-
-                    tmpWeight1 = fabs(mmask[i + 1] - mmask[i]);     // w_i+1
-                    tmpWeight2 = fabs(mmask[i - 1] - mmask[i - 2]); // w_i-1
-
-                    floattype wsum = tmpWeight1 + tmpWeight2;
-
-                    if (wsum == 0)
+                    // if the previous value is in our range too, current a1 coefficient is already calculated
+                    if (i - 1 <= workbegin)
                     {
-                        tmpWeight1 = 1.0;
-                        tmpWeight2 = 1.0;
-                        wsum = 2.0;
+                        tmpWeight1 = fabs(mmask[i + 1] - mmask[i]);     // w_i+1
+                        tmpWeight2 = fabs(mmask[i - 1] - mmask[i - 2]); // w_i-1
+
+                        wsum = tmpWeight1 + tmpWeight2;
+
+                        if (wsum == 0)
+                        {
+                            tmpWeight1 = 1.0;
+                            tmpWeight2 = 1.0;
+                            wsum = 2.0;
+                        }
+
+                        a1Coefs[mask][i] = (tmpWeight1 * mmask[i - 1] + tmpWeight2 * mmask[i]) / wsum;
                     }
 
-                    a0Coefs[mask][i] = values[pos].level;
-                    a1Coefs[mask][i] = (tmpWeight1 * mmask[i - 1] + tmpWeight2 * mmask[i]) / wsum;
-
-                    tmpWeight1 = fabs(mmask[i + 1 + 1] - mmask[i + 1]);     // w_i+1
-                    tmpWeight2 = fabs(mmask[i - 1 + 1] - mmask[i - 2 + 1]); // w_i-1
+                    tmpWeight1 = fabs(mmask[i + 2] - mmask[i + 1]); // w_i+1
+                    tmpWeight2 = fabs(mmask[i] - mmask[i - 1]);     // w_i-1
 
                     wsum = tmpWeight1 + tmpWeight2;
 
@@ -466,8 +488,14 @@ void ApproxAkimaSpline::CalculateParameters_TBB()
                         wsum = 2.0;
                     }
 
-                    const floattype nextA1 = (tmpWeight1 * mmask[i - 1 + 1] + tmpWeight2 * mmask[i + 1]) / wsum;
+                    nextA1 = (tmpWeight1 * mmask[i] + tmpWeight2 * mmask[i + 1]) / wsum;
+                    // if the next index is still in our range, store it, so we don't need to calculate it again
+                    if (i + 1 < limit)
+                        a1Coefs[mask][i + 1] = nextA1;
 
+                    deltax = values[pos_n].datetime - values[pos].datetime;
+
+                    a0Coefs[mask][i] = values[pos].level;
                     a2Coefs[mask][i] = (3 * mmask[i] - 2 * a1Coefs[mask][i] - nextA1) / deltax;
                     a3Coefs[mask][i] = (a1Coefs[mask][i] + nextA1 - 2 * mmask[i]) / (deltax * deltax);
                 }
@@ -708,7 +736,23 @@ HRESULT IfaceCalling ApproxAkimaSpline::Approximate(TApproximationParams *params
     }
     else if (appConcurrency == ConcurrencyType::ct_parallel_tbb)
     {
-        CalculateParameters_TBB();
+        // mask-level calculation parallelization is actually FASTER than parameter-level calculation for smaller amounts of data
+        // for 250 values: mask-level: ~35ms, parameter-level: ~52ms on my developer machine (i5 4570)
+
+        // TODO: find better boundary between "small" and "big" amount of data, value of 10000 is guessed based on tendencies;
+        //       such value would be most likely different for different hardware
+
+        // for smaller amounts - mask-level calculation parallelization
+        if (valueCount < 10000)
+        {
+            tbb::parallel_for(uint32_t(1), uint32_t(APPROX_MASK_COUNT), uint32_t(1), [&](uint32_t mask) {
+                CalculateParametersForMask(mask);
+            });
+        }
+        else // for higher amounts - parameter-level calculation parallelization
+        {
+            CalculateParameters_TBB();
+        }
     }
     else if (appConcurrency == ConcurrencyType::ct_parallel_opencl)
     {

@@ -23,11 +23,12 @@ __kernel void akima_calc_derivatives(__global const int *mask_weights, __global 
 
     int pos, pos_n;
 
-    pos = 8 * (myWork / mask_weights[mask]) + mask_index_transform[mask * 8 + (myWork % mask_weights[mask])];
     pos_n = 8 * ((myWork + 1) / mask_weights[mask]) + mask_index_transform[mask * 8 + ((myWork + 1) % mask_weights[mask])];
 
-    if (pos >= valueCount || pos_n >= valueCount)
+    if (/*pos >= valueCount || */pos_n >= valueCount)
         return;
+
+    pos = 8 * (myWork / mask_weights[mask]) + mask_index_transform[mask * 8 + (myWork % mask_weights[mask])];
 
     m[LINEAR_2D_INDEX_M(mask, valueCount, myWork)] = (values[pos_n * 2 + 1] - values[pos * 2 + 1]) / (values[pos_n * 2 + 0] - values[pos * 2 + 0]);
 }
@@ -49,13 +50,14 @@ __kernel void akima_calc_parameters(__global const int *mask_weights, __global c
     int pos, pos_n;
     real_t tmpWeight1, tmpWeight2;
 
-    pos = 8 * (myWork / mask_weights[mask]) + mask_index_transform[mask * 8 + (myWork % mask_weights[mask])];
     pos_n = 8 * ((myWork + 1) / mask_weights[mask]) + mask_index_transform[mask * 8 + ((myWork + 1) % mask_weights[mask])];
 
-    if (pos >= valueCount || pos_n >= valueCount)
+    if (/*pos >= valueCount || */pos_n >= valueCount)
         return;
 
-    const real_t wsum1 = fabs(m[LINEAR_2D_INDEX_M(mask, valueCount, myWork + 1)] - m[LINEAR_2D_INDEX_M(mask, valueCount, myWork + 0)]) + fabs(m[LINEAR_2D_INDEX_M(mask, valueCount, myWork - 1)] - m[LINEAR_2D_INDEX_M(mask, valueCount, myWork - 2)]);
+    pos = 8 * (myWork / mask_weights[mask]) + mask_index_transform[mask * 8 + (myWork % mask_weights[mask])];
+
+    /*const real_t wsum1 = fabs(m[LINEAR_2D_INDEX_M(mask, valueCount, myWork + 1)] - m[LINEAR_2D_INDEX_M(mask, valueCount, myWork + 0)]) + fabs(m[LINEAR_2D_INDEX_M(mask, valueCount, myWork - 1)] - m[LINEAR_2D_INDEX_M(mask, valueCount, myWork - 2)]);
     if (wsum1 == 0)
     {
         a0[LINEAR_2D_INDEX(mask, valueCount, myWork)] = values[pos * 2 + 1];
@@ -63,7 +65,7 @@ __kernel void akima_calc_parameters(__global const int *mask_weights, __global c
         a2[LINEAR_2D_INDEX(mask, valueCount, myWork)] = 0;
         a3[LINEAR_2D_INDEX(mask, valueCount, myWork)] = 0;
     }
-    else
+    else*/
     {
         const real_t deltax = values[pos_n * 2 + 0] - values[pos * 2 + 0];
 
