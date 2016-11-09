@@ -36,7 +36,7 @@ class ApproxQuadraticSpline : public CCommonApprox
         inline void CalculateCoefsFor(const uint32_t mask, size_t index, floattype aPrev, floattype bPrev, floattype xCur, floattype xNext, floattype yCur, floattype yNext);
 
         // retrieves index of closest value in glucose levels
-        HRESULT GetIndexFor(floattype time, size_t &index);
+        HRESULT GetIndexFor(floattype time, size_t &index, size_t &origIndex, uint8_t mask = 0xFF);
 
         // quadratic spline coefficients
         std::vector<floattype> aCoefs[APPROX_MASK_COUNT], bCoefs[APPROX_MASK_COUNT], cCoefs[APPROX_MASK_COUNT];

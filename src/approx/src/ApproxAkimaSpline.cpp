@@ -58,7 +58,7 @@ void ApproxAkimaSpline::CalculateParametersForMask(const uint32_t mask)
             j = 0;
         }
 
-        if (base + offsets[j] > maskedCount || base + offsets[j + 1] > maskedCount)
+        if (base + offsets[j] > valueCount || base + offsets[j + 1] > valueCount)
             break;
 
         m[i] = (values[base + offsets[j + 1]].level - values[base + offsets[j]].level) /
@@ -72,7 +72,7 @@ void ApproxAkimaSpline::CalculateParametersForMask(const uint32_t mask)
     base = 0;
     j = 0;
 
-    for (i = 0; i < valueCount - 1; i++, j++)
+    for (i = 0; i < maskedCount - 1; i++, j++)
     {
         if (j == mask_weights[mask])
         {
@@ -80,7 +80,7 @@ void ApproxAkimaSpline::CalculateParametersForMask(const uint32_t mask)
             j = 0;
         }
 
-        if (base + offsets[j] > maskedCount || base + offsets[j + 1] > maskedCount)
+        if (base + offsets[j] > valueCount || base + offsets[j + 1] > valueCount)
             break;
 
         const floattype wsum1 = fabs(m[i + 1] - m[i]) + fabs(m[i - 1] - m[i - 2]);

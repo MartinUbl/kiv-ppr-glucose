@@ -274,10 +274,17 @@ HRESULT IfaceCalling ApproxQuadraticSpline::GetLevels(floattype desiredtime, flo
     const uint8_t mask = appCurrentTestMask;
 
     HRESULT res;
-    size_t index;
+    size_t index, origIndex;
+
+    size_t remCount, maskedCount;
+
+    remCount = (valueCount / 8);
+    maskedCount = remCount * mask_weights[mask];
+    for (int i = 0; i < valueCount - remCount * 8; i++)
+        maskedCount += (mask >> (7 - i)) & 1;
 
     // retrieve index for desired time
-    res = GetIndexFor(desiredtime, index);
+    res = GetIndexFor(desiredtime, index, origIndex, mask);
     if (res == S_FALSE)
         return S_FALSE;
 
@@ -285,13 +292,24 @@ HRESULT IfaceCalling ApproxQuadraticSpline::GetLevels(floattype desiredtime, flo
     size_t base;
     size_t i, j;
 
-    // calculate offsets
+    // retrieve precalculated offsets
     const int* offsets = mask_shift_base[mask];
 
-    base = 0;
+    base = (origIndex / 8) * 8;
+    if (mask_index_transform_inverse[mask][(origIndex % 8)] == 0 && base > 0)
+        base -= 8;
+
+    if (mask_index_transform_inverse[mask][origIndex % 8] == 0)
+    {
+        if (origIndex < 8)
+            j = 0;
+        else
+            j = mask_index_transform_inverse[mask][7] - 1;
+    }
+    else
+        j = mask_index_transform_inverse[mask][origIndex % 8] - 1;
 
     i = 0;
-    j = 0;
     floattype curtime = desiredtime;
 
     // fill the array
@@ -323,7 +341,7 @@ HRESULT IfaceCalling ApproxQuadraticSpline::GetLevels(floattype desiredtime, flo
         }
     }
 
-    *filled = i - 1;
+    *filled = i;
 
     return S_OK;
 }
@@ -335,7 +353,7 @@ void ApproxQuadraticSpline::CalculateCoefsFor(const uint32_t mask, size_t index,
     cCoefs[mask][index] = yNext - aCoefs[mask][index] * xNext * xNext - bCoefs[mask][index] * xNext;
 }
 
-HRESULT ApproxQuadraticSpline::GetIndexFor(floattype time, size_t &index)
+HRESULT ApproxQuadraticSpline::GetIndexFor(floattype time, size_t &index, size_t &origIndex, uint8_t mask)
 {
     // secure out of range values
     if (time + DBL_EPSILON < values[0].datetime || time > values[valueCount - 1].datetime)
@@ -350,7 +368,12 @@ HRESULT ApproxQuadraticSpline::GetIndexFor(floattype time, size_t &index)
         if (time < values[i].datetime)
         {
             // this is safe since we guarantee the bounds with previous conditions
-            index = i - 1;
+            origIndex = i - 1;
+            if (origIndex >= 8)
+                index = (mask_index_transform_inverse[mask][7] - 1) + (mask_index_transform_inverse[mask][7] * ((origIndex / 8) - 1)) + mask_index_transform_inverse[mask][(i - 1) % 8];
+            else
+                index = (mask_index_transform_inverse[mask][origIndex % 8] == 0) ? 0 : (mask_index_transform_inverse[mask][origIndex % 8] - 1);
+
             return S_OK;
         }
     }
