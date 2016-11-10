@@ -28,7 +28,7 @@ LoaderType appLoaderType;
 uint8_t appCurrentTestMask;
 
 // should we create testing SVG output? (1 = true, anything else = false)
-#define DEBUG_SVG_PRINT 1
+#define DEBUG_SVG_PRINT 0
 
 // reduces all times by minimum of all times - causes less precision loss
 static floattype reduceLevels(CGlucoseLevels* lvls)
@@ -220,11 +220,41 @@ int main(int argc, char** argv)
     }
 
     if (!appSilentMode)
+    {
+        std::cout << "Using approximator: ";
+        if (appApproxMethod == apxmQuadraticSpline)
+            std::cout << "quadratic spline";
+        else if (appApproxMethod == apxmAkimaSpline)
+            std::cout << "akima spline";
+        else
+            std::cout << "unknown";
+        std::cout << std::endl;
+
+        std::cout << "Using concurrency mode: ";
+        if (appConcurrency == ConcurrencyType::ct_serial)
+            std::cout << "none (serial)";
+        else if (appConcurrency == ConcurrencyType::ct_parallel_threads)
+            std::cout << "C++11 threads";
+        else if (appConcurrency == ConcurrencyType::ct_parallel_opencl)
+            std::cout << "OpenCL";
+        else if (appConcurrency == ConcurrencyType::ct_parallel_tbb)
+            std::cout << "Intel TBB";
+        else if (appConcurrency == ConcurrencyType::ct_parallel_amp_gpu)
+            std::cout << "C++AMP (GPU)";
+        else
+            std::cout << "unknown";
+        std::cout << std::endl;
+    }
+
+    if (!appSilentMode)
         std::cout << "Loading values from storage..." << std::endl;
 
     // load values from storage
     std::vector<CGlucoseLevels*> vec;
     res = ldr->LoadGlucoseLevels(vec);
+
+    size_t vecSize = vec.size();
+    size_t i;
 
     // if we use OpenCL concurrency type, preload programs before actual calculation
     if (appConcurrency == ConcurrencyType::ct_parallel_opencl)
@@ -242,9 +272,9 @@ int main(int argc, char** argv)
     if (!appSilentMode)
         std::cout << "Preparing approximation structures..." << std::endl;
 
-    std::vector<CCommonApprox*> approxVect(vec.size());
-    std::vector<floattype> reduceAmount(vec.size());
-    for (size_t i = 0; i < vec.size(); i++)
+    std::vector<CCommonApprox*> approxVect(vecSize);
+    std::vector<floattype> reduceAmount(vecSize);
+    for (i = 0; i < vecSize; i++)
     {
         // reduce times to not lose precision so rapidly
         reduceAmount[i] = reduceLevels(vec[i]);
@@ -255,22 +285,19 @@ int main(int argc, char** argv)
             approxVect[i] = new ApproxAkimaSpline(vec[i]);
     }
 
-    clock_t tmStart = clock();
-
     if (!appSilentMode)
         std::cout << "Processing " << vec.size() << " segments..." << std::endl;
 
-    for (size_t i = 0; i < vec.size(); i++)
-    {
-        if (!appSilentMode)
-            std::cout << "Processing segment " << (i+1) << " / " << vec.size() << "..." << std::endl;
+    clock_t tmStart = clock();
 
+    for (i = 0; i < vecSize; i++)
+    {
         approxVect[i]->Approximate(nullptr);
 
 #if DEBUG_SVG_PRINT == 1
         if (i == 0)
         {
-            appCurrentTestMask = 63;
+            appCurrentTestMask = 154;
             // some testing values for output
             size_t levcount = 768;
             size_t filled;
