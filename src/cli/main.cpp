@@ -5,6 +5,7 @@
 #include "../loaders/SQLiteLoader.h"
 #include "../approx/src/ApproxQuadraticSpline.h"
 #include "../approx/src/ApproxAkimaSpline.h"
+#include "../approx/src/ApproxCatmullRomSpline.h"
 #include "appconfig.h"
 #include "OpenCLLoader.h"
 #include "Statistics.h"
@@ -78,6 +79,8 @@ size_t parseApproxMethod(const char* str)
         return apxmQuadraticSpline;
     else if (strcmp(str, "akima") == 0 || strcmp(str, "a") == 0)
         return apxmAkimaSpline;
+    else if (strcmp(str, "catmullrom") == 0 || strcmp(str, "c") == 0)
+        return apxmCatmullRomSpline;
 
     return 0;
 }
@@ -283,6 +286,8 @@ int main(int argc, char** argv)
             approxVect[i] = new ApproxQuadraticSpline(vec[i]);
         else if (appApproxMethod == apxmAkimaSpline)
             approxVect[i] = new ApproxAkimaSpline(vec[i]);
+        else if (appApproxMethod == apxmCatmullRomSpline)
+            approxVect[i] = new ApproxCatmullRomSpline(vec[i]);
     }
 
     if (!appSilentMode)

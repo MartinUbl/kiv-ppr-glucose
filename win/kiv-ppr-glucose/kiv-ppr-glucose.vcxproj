@@ -139,6 +139,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\approx\src\ApproxAkimaSpline.cpp" />
+    <ClCompile Include="..\..\src\approx\src\ApproxCatmullRomSpline.cpp" />
     <ClCompile Include="..\..\src\approx\src\ApproxQuadraticSpline.cpp" />
     <ClCompile Include="..\..\src\approx\src\CommonApprox.cpp" />
     <ClCompile Include="..\..\src\approx\src\GlucoseLevels.cpp" />
@@ -153,6 +154,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\approx\src\ApproxAkimaSpline.h" />
+    <ClInclude Include="..\..\src\approx\src\ApproxCatmullRomSpline.h" />
     <ClInclude Include="..\..\src\approx\src\ApproxQuadraticSpline.h" />
     <ClInclude Include="..\..\src\approx\src\CommonApprox.h" />
     <ClInclude Include="..\..\src\approx\src\GlucoseLevels.h" />

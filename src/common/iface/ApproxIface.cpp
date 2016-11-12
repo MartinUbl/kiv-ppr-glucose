@@ -17,6 +17,7 @@ const size_t apxmAverageExponential = 1;
 const size_t apxmAverageLine = 2;
 const size_t apxmQuadraticSpline = 3;
 const size_t apxmAkimaSpline = 4;
+const size_t apxmCatmullRomSpline = 5;
 
 const size_t apxNoDerivation = 0;
 const size_t apxFirstOrderDerivation = 1;

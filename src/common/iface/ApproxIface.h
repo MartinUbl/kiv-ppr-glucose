@@ -65,6 +65,7 @@ extern const size_t apxmAverageExponential;     // so far, only exp has the deri
 //extern const size_t apxmAverageLine;          // currently disabled as not derivation is not implemented for the line
 extern const size_t apxmQuadraticSpline;
 extern const size_t apxmAkimaSpline;
+extern const size_t apxmCatmullRomSpline;
 
 // Epsilon Types - they cannot be declared with extern to allow using them with switch
 const static size_t etFixedIterations = 1;      // fixed number of iterations
