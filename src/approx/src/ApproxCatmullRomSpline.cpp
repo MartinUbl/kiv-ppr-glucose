@@ -13,7 +13,7 @@
 // safe, no name conflict
 using namespace concurrency;
 
-inline floattype getVectorSquareLength(const floattype& x1, const floattype& y1, const floattype& x2, const floattype& y2)
+inline floattype getVectorSquareLength(const floattype x1, const floattype y1, const floattype x2, const floattype y2)
 {
     floattype dx = x2 - x1;
     floattype dy = y2 - y1;
@@ -27,7 +27,7 @@ void ApproxCatmullRomSpline::CalculateParametersForMask(const uint32_t mask)
     // offsets of shifted values (used for fast lookup)
     const int *offsets = mask_shift_base[mask];
 
-    const floattype tauCoef = catmullRomParam_Centripetal;
+    const floattype tauCoef = tensionParameter;
 
     size_t i, j;
 
@@ -69,12 +69,14 @@ void ApproxCatmullRomSpline::CalculateParametersForMask(const uint32_t mask)
         dt1 = pow(getVectorSquareLength(values[pos1].datetime, values[pos1].level, values[pos2].datetime, values[pos2].level), tauCoef);
         dt2 = pow(getVectorSquareLength(values[pos2].datetime, values[pos2].level, values[pos3].datetime, values[pos3].level), tauCoef);
 
+        /*
         if (dt1 < FLT_EPSILON)
             dt1 = 1.0f;
         if (dt0 < FLT_EPSILON)
             dt0 = dt1;
         if (dt2 < FLT_EPSILON)
             dt2 = dt1;
+        */
 
         // init xCoefs
 
@@ -84,10 +86,12 @@ void ApproxCatmullRomSpline::CalculateParametersForMask(const uint32_t mask)
         t1 *= dt1;
         t2 *= dt1;
 
-        xCoefs[mask][i + 1][0] = values[pos1].datetime;
-        xCoefs[mask][i + 1][1] = t1;
-        xCoefs[mask][i + 1][2] = -3 * values[pos1].datetime + 3 * values[pos2].datetime - 2 * t1 - t2;
-        xCoefs[mask][i + 1][3] = 2 * values[pos1].datetime - 2 * values[pos2].datetime + t1 + t2;
+        floattype* const xC = &xCoefs[mask][i + 1][0];
+
+        xC[0] = values[pos1].datetime;
+        xC[1] = t1;
+        xC[2] = -3 * values[pos1].datetime + 3 * values[pos2].datetime - 2 * t1 - t2;
+        xC[3] = 2 * values[pos1].datetime - 2 * values[pos2].datetime + t1 + t2;
 
         // init yCoefs
 
@@ -97,10 +101,12 @@ void ApproxCatmullRomSpline::CalculateParametersForMask(const uint32_t mask)
         t1 *= dt1;
         t2 *= dt1;
 
-        yCoefs[mask][i + 1][0] = values[pos1].level;
-        yCoefs[mask][i + 1][1] = t1;
-        yCoefs[mask][i + 1][2] = -3 * values[pos1].level + 3 * values[pos2].level - 2 * t1 - t2;
-        yCoefs[mask][i + 1][3] = 2 * values[pos1].level - 2 * values[pos2].level + t1 + t2;
+        floattype* const yC = &yCoefs[mask][i + 1][0];
+
+        yC[0] = values[pos1].level;
+        yC[1] = t1;
+        yC[2] = -3 * values[pos1].level + 3 * values[pos2].level - 2 * t1 - t2;
+        yC[3] = 2 * values[pos1].level - 2 * values[pos2].level + t1 + t2;
     }
 
     for (i = 0; i < 4; i++)
@@ -162,7 +168,100 @@ void ApproxCatmullRomSpline::CalculateParameters_threads()
             std::mutex mtx;
     };
 
-    //
+    size_t i;
+
+    size_t maskedCount[APPROX_MASK_COUNT];
+    size_t remCount;
+
+    // serial calculation, this is too short for parallelization
+    for (uint16_t mask = 1; mask < APPROX_MASK_COUNT; mask++)
+    {
+        remCount = (valueCount / 8);
+        maskedCount[mask] = remCount * mask_weights[mask];
+        for (i = 0; i < valueCount - remCount * 8; i++)
+            maskedCount[mask] += (mask >> (7 - i)) & 1;
+
+        xCoefs[mask].resize(maskedCount[mask] - 1);
+        yCoefs[mask].resize(maskedCount[mask] - 1);
+    }
+
+    threadWork_t thrWork(maskedCount);
+
+    for (i = 0; i < appWorkerCount; i++)
+    {
+        workers[i] = new std::thread([&]() {
+            uint8_t mask;
+            int32_t myWork;
+            size_t pos0, pos1, pos2, pos3;
+            floattype dt0, dt1, dt2, t1, t2;
+
+
+            while (thrWork.getWork(mask, myWork))
+            {
+                pos3 = 8 * ((myWork + 3) / mask_weights[mask]) + mask_index_transform[mask][(myWork + 3) % mask_weights[mask]];
+
+                if (pos3 >= valueCount)
+                    continue;
+
+                pos2 = 8 * ((myWork + 2) / mask_weights[mask]) + mask_index_transform[mask][(myWork + 2) % mask_weights[mask]];
+                pos1 = 8 * ((myWork + 1) / mask_weights[mask]) + mask_index_transform[mask][(myWork + 1) % mask_weights[mask]];
+                pos0 = 8 * (myWork / mask_weights[mask]) + mask_index_transform[mask][myWork % mask_weights[mask]];
+
+                dt0 = pow(getVectorSquareLength(values[pos0].datetime, values[pos0].level, values[pos1].datetime, values[pos1].level), tensionParameter);
+                dt1 = pow(getVectorSquareLength(values[pos1].datetime, values[pos1].level, values[pos2].datetime, values[pos2].level), tensionParameter);
+                dt2 = pow(getVectorSquareLength(values[pos2].datetime, values[pos2].level, values[pos3].datetime, values[pos3].level), tensionParameter);
+
+                /*
+                if (dt1 < FLT_EPSILON)
+                dt1 = 1.0f;
+                if (dt0 < FLT_EPSILON)
+                dt0 = dt1;
+                if (dt2 < FLT_EPSILON)
+                dt2 = dt1;
+                */
+
+                // init xCoefs
+
+                t1 = (values[pos1].datetime - values[pos0].datetime) / dt0 - (values[pos2].datetime - values[pos0].datetime) / (dt0 + dt1) + (values[pos2].datetime - values[pos1].datetime) / dt1;
+                t2 = (values[pos2].datetime - values[pos1].datetime) / dt1 - (values[pos3].datetime - values[pos1].datetime) / (dt1 + dt2) + (values[pos3].datetime - values[pos2].datetime) / dt2;
+
+                t1 *= dt1;
+                t2 *= dt1;
+
+                floattype* const xC = &xCoefs[mask][myWork + 1][0];
+
+                xC[0] = values[pos1].datetime;
+                xC[1] = t1;
+                xC[2] = -3 * values[pos1].datetime + 3 * values[pos2].datetime - 2 * t1 - t2;
+                xC[3] = 2 * values[pos1].datetime - 2 * values[pos2].datetime + t1 + t2;
+
+                // init yCoefs
+
+                t1 = (values[pos1].level - values[pos0].level) / dt0 - (values[pos2].level - values[pos0].level) / (dt0 + dt1) + (values[pos2].level - values[pos1].level) / dt1;
+                t2 = (values[pos2].level - values[pos1].level) / dt1 - (values[pos3].level - values[pos1].level) / (dt1 + dt2) + (values[pos3].level - values[pos2].level) / dt2;
+
+                t1 *= dt1;
+                t2 *= dt1;
+
+                floattype* const yC = &yCoefs[mask][myWork + 1][0];
+
+                yC[0] = values[pos1].level;
+                yC[1] = t1;
+                yC[2] = -3 * values[pos1].level + 3 * values[pos2].level - 2 * t1 - t2;
+                yC[3] = 2 * values[pos1].level - 2 * values[pos2].level + t1 + t2;
+            }
+        });
+    }
+
+    for (i = 0; i < appWorkerCount; i++)
+    {
+        if (workers[i]->joinable())
+            workers[i]->join();
+
+        delete workers[i];
+    }
+
+    delete workers;
 }
 
 void ApproxCatmullRomSpline::CalculateParameters_AMP()
@@ -172,7 +271,94 @@ void ApproxCatmullRomSpline::CalculateParameters_AMP()
 
 void ApproxCatmullRomSpline::CalculateParameters_TBB()
 {
-    //
+    size_t maskedCount[APPROX_MASK_COUNT];
+
+    // calculate masked counts
+    tbb::parallel_for(size_t(1), size_t(APPROX_MASK_COUNT) - 1, size_t(1), [&](size_t mask) {
+        size_t remCount = valueCount >> 3;// (valueCount / 8);
+        maskedCount[mask] = remCount * mask_weights[mask];
+        for (int i = 0; i < valueCount - remCount * 8; i++)
+            maskedCount[mask] += (mask >> (7 - i)) & 1;
+    });
+    maskedCount[255] = valueCount;
+
+    // resize value and derivation vectors, we know how much values do we need
+    tbb::parallel_for(size_t(1), size_t(APPROX_MASK_COUNT), size_t(1), [&](size_t mask) {
+        xCoefs[mask].resize(maskedCount[mask] - 1);
+        yCoefs[mask].resize(maskedCount[mask] - 1);
+    });
+
+    // count derivations
+    tbb::parallel_for(tbb::blocked_range2d<size_t, int>(1, APPROX_MASK_COUNT, 0, (int)valueCount), [&](const tbb::blocked_range2d<size_t, int> &idx) {
+        size_t mask;
+        int i;
+        floattype dt0, dt1, dt2, t1, t2;
+        size_t pos0, pos1, pos2, pos3;
+
+        const int workbegin = idx.cols().begin();
+
+        // for each mask
+        for (mask = idx.rows().begin(); mask < idx.rows().end(); mask++)
+        {
+            const int limit = (int)min(idx.cols().end(), maskedCount[mask] - 1);
+
+            // for each value
+            for (i = workbegin; i < limit; i++)
+            {
+                pos3 = 8 * ((i + 3) / mask_weights[mask]) + mask_index_transform[mask][(i + 3) % mask_weights[mask]];
+
+                if (pos3 >= valueCount)
+                    continue;
+
+                pos2 = 8 * ((i + 2) / mask_weights[mask]) + mask_index_transform[mask][(i + 2) % mask_weights[mask]];
+                pos1 = 8 * ((i + 1) / mask_weights[mask]) + mask_index_transform[mask][(i + 1) % mask_weights[mask]];
+                pos0 = 8 * (i / mask_weights[mask]) + mask_index_transform[mask][i % mask_weights[mask]];
+
+                dt0 = pow(getVectorSquareLength(values[pos0].datetime, values[pos0].level, values[pos1].datetime, values[pos1].level), tensionParameter);
+                dt1 = pow(getVectorSquareLength(values[pos1].datetime, values[pos1].level, values[pos2].datetime, values[pos2].level), tensionParameter);
+                dt2 = pow(getVectorSquareLength(values[pos2].datetime, values[pos2].level, values[pos3].datetime, values[pos3].level), tensionParameter);
+
+                /*
+                if (dt1 < FLT_EPSILON)
+                dt1 = 1.0f;
+                if (dt0 < FLT_EPSILON)
+                dt0 = dt1;
+                if (dt2 < FLT_EPSILON)
+                dt2 = dt1;
+                */
+
+                // init xCoefs
+
+                t1 = (values[pos1].datetime - values[pos0].datetime) / dt0 - (values[pos2].datetime - values[pos0].datetime) / (dt0 + dt1) + (values[pos2].datetime - values[pos1].datetime) / dt1;
+                t2 = (values[pos2].datetime - values[pos1].datetime) / dt1 - (values[pos3].datetime - values[pos1].datetime) / (dt1 + dt2) + (values[pos3].datetime - values[pos2].datetime) / dt2;
+
+                t1 *= dt1;
+                t2 *= dt1;
+
+                floattype* const xC = &xCoefs[mask][i + 1][0];
+
+                xC[0] = values[pos1].datetime;
+                xC[1] = t1;
+                xC[2] = -3 * values[pos1].datetime + 3 * values[pos2].datetime - 2 * t1 - t2;
+                xC[3] = 2 * values[pos1].datetime - 2 * values[pos2].datetime + t1 + t2;
+
+                // init yCoefs
+
+                t1 = (values[pos1].level - values[pos0].level) / dt0 - (values[pos2].level - values[pos0].level) / (dt0 + dt1) + (values[pos2].level - values[pos1].level) / dt1;
+                t2 = (values[pos2].level - values[pos1].level) / dt1 - (values[pos3].level - values[pos1].level) / (dt1 + dt2) + (values[pos3].level - values[pos2].level) / dt2;
+
+                t1 *= dt1;
+                t2 *= dt1;
+
+                floattype* const yC = &yCoefs[mask][i + 1][0];
+
+                yC[0] = values[pos1].level;
+                yC[1] = t1;
+                yC[2] = -3 * values[pos1].level + 3 * values[pos2].level - 2 * t1 - t2;
+                yC[3] = 2 * values[pos1].level - 2 * values[pos2].level + t1 + t2;
+            }
+        }
+    });
 }
 
 void ApproxCatmullRomSpline::CalculateParameters_OpenCL()
@@ -183,6 +369,8 @@ void ApproxCatmullRomSpline::CalculateParameters_OpenCL()
 HRESULT IfaceCalling ApproxCatmullRomSpline::Approximate(TApproximationParams *params)
 {
     uint32_t mask;
+
+    tensionParameter = params ? params->catmull.tensionParam : catmullRomParam_Centripetal;
 
     // cache count and values pointer
     mEnumeratedLevels->GetLevelsCount(&valueCount);
@@ -204,7 +392,7 @@ HRESULT IfaceCalling ApproxCatmullRomSpline::Approximate(TApproximationParams *p
     else if (appConcurrency == ConcurrencyType::ct_parallel_tbb)
     {
         // mask-level calculation parallelization is actually FASTER than parameter-level calculation for smaller amounts of data
-        // for 250 values: mask-level: ~35ms, parameter-level: ~52ms on my developer machine (i5 4570)
+        // for 250 values: mask-level: ~130ms, parameter-level: ~170ms on my developer machine (i5 4570)
 
         // TODO: find better boundary between "small" and "big" amount of data, value of 10000 is guessed based on tendencies;
         //       such value would be most likely different for different hardware

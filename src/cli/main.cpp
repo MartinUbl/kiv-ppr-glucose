@@ -229,6 +229,8 @@ int main(int argc, char** argv)
             std::cout << "quadratic spline";
         else if (appApproxMethod == apxmAkimaSpline)
             std::cout << "akima spline";
+        else if (appApproxMethod == apxmCatmullRomSpline)
+            std::cout << "catmull-rom spline";
         else
             std::cout << "unknown";
         std::cout << std::endl;
@@ -275,6 +277,12 @@ int main(int argc, char** argv)
     if (!appSilentMode)
         std::cout << "Preparing approximation structures..." << std::endl;
 
+    TApproximationParams params;
+    params.ApproximationMethod = appApproxMethod;
+    // we use centripetal catmull-rom parametrization
+    if (appApproxMethod == apxmCatmullRomSpline)
+        params.catmull.tensionParam = catmullRomParam_Centripetal;
+
     std::vector<CCommonApprox*> approxVect(vecSize);
     std::vector<floattype> reduceAmount(vecSize);
     for (i = 0; i < vecSize; i++)
@@ -297,7 +305,7 @@ int main(int argc, char** argv)
 
     for (i = 0; i < vecSize; i++)
     {
-        approxVect[i]->Approximate(nullptr);
+        approxVect[i]->Approximate(&params);
 
 #if DEBUG_SVG_PRINT == 1
         if (i == 0)

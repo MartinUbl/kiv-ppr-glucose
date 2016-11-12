@@ -87,9 +87,15 @@ typedef struct
 
 typedef struct
 {
+    floattype tensionParam;
+} TCatmullRomSplineParams;
+
+typedef struct
+{
     size_t ApproximationMethod; // = apxmAverageExponential 
     union {
         TAvgExpApproximationParams avgexp;
+        TCatmullRomSplineParams catmull;
     };
 } TApproximationParams;
 

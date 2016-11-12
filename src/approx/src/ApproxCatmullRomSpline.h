@@ -52,6 +52,9 @@ class ApproxCatmullRomSpline : public CCommonApprox
 
         // cached value pointer
         TGlucoseLevel* values;
+
+        // Catmull-Rom polynomial formula tension parameter
+        floattype tensionParameter;
 };
 
 #pragma warning( pop )
