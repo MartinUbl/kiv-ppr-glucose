@@ -25,6 +25,8 @@ extern size_t appApproxMethod;
 extern size_t appWorkerCount;
 // console output enabled?
 extern bool appSilentMode;
+// is statistics count ant print enabled?
+extern bool appPrintStatistics;
 // input filename
 extern std::string appInputFilename;
 // loader type
@@ -42,5 +44,6 @@ typedef struct
 // available OpenCL kernel files
 const clProgramLocator clPrograms[] = {
     { apxmQuadraticSpline, "ApproxQuadraticSpline.cl" },
-    { apxmAkimaSpline, "ApproxAkimaSpline.cl" }
+    { apxmAkimaSpline, "ApproxAkimaSpline.cl" },
+    { apxmCatmullRomSpline, "ApproxCatmullRomSpline.cl" }
 };

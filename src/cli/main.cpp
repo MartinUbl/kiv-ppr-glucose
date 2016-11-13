@@ -20,6 +20,8 @@ size_t appApproxMethod;
 size_t appWorkerCount;
 // console output enabled?
 bool appSilentMode;
+// is statistics count ant print enabled?
+bool appPrintStatistics;
 // input filename
 std::string appInputFilename;
 // loader type
@@ -113,6 +115,7 @@ int parseCLIArgs(int argc, char** argv)
     appConcurrency = ConcurrencyType::ct_none;
     appLoaderType = LoaderType::SQLiteLoaderType;
     appSilentMode = false;
+    appPrintStatistics = true;
     appWorkerCount = 1;
 
     for (int i = 1; i < argc; i++)
@@ -175,6 +178,10 @@ int parseCLIArgs(int argc, char** argv)
         else if (strcmp(argv[i], "-s") == 0)
         {
             appSilentMode = true;
+        }
+        else if (strcmp(argv[i], "-nostat") == 0)
+        {
+            appPrintStatistics = false;
         }
     }
 
@@ -350,7 +357,8 @@ int main(int argc, char** argv)
     if (!appSilentMode)
         std::cout << std::endl << "Done calculating parameters. Calculating statistics..." << std::endl;
 
-    CalculateAndPrintStats(vec, approxVect);
+    if (appPrintStatistics)
+        CalculateAndPrintStats(vec, approxVect);
 
     return 0;
 }
