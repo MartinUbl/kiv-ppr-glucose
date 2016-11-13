@@ -174,6 +174,7 @@
   </ItemGroup>
   <ItemGroup>
     <Intel_OpenCL_Build_Rules Include="..\..\src\approx\src\ApproxAkimaSpline.cl" />
+    <Intel_OpenCL_Build_Rules Include="..\..\src\approx\src\ApproxCatmullRomSpline.cl" />
     <Intel_OpenCL_Build_Rules Include="..\..\src\approx\src\ApproxQuadraticSpline.cl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

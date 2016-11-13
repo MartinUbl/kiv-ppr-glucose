@@ -135,5 +135,8 @@
     <Intel_OpenCL_Build_Rules Include="..\..\src\approx\src\ApproxQuadraticSpline.cl">
       <Filter>OpenCL Files</Filter>
     </Intel_OpenCL_Build_Rules>
+    <Intel_OpenCL_Build_Rules Include="..\..\src\approx\src\ApproxCatmullRomSpline.cl">
+      <Filter>OpenCL Files</Filter>
+    </Intel_OpenCL_Build_Rules>
   </ItemGroup>
 </Project>

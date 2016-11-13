@@ -108,12 +108,6 @@ void ApproxCatmullRomSpline::CalculateParametersForMask(const uint32_t mask)
         yC[2] = -3 * values[pos1].level + 3 * values[pos2].level - 2 * t1 - t2;
         yC[3] = 2 * values[pos1].level - 2 * values[pos2].level + t1 + t2;
     }
-
-    for (i = 0; i < 4; i++)
-    {
-        xCoefs[mask][0][i] = xCoefs[mask][1][i];
-        yCoefs[mask][0][i] = yCoefs[mask][1][i];
-    }
 }
 
 void ApproxCatmullRomSpline::CalculateParameters_threads()
@@ -363,7 +357,149 @@ void ApproxCatmullRomSpline::CalculateParameters_TBB()
 
 void ApproxCatmullRomSpline::CalculateParameters_OpenCL()
 {
-    //
+    cl_int ret;
+
+    clProgramRecord* program = GetCLProgramRecord(apxmCatmullRomSpline);
+    if (!program)
+        return;
+
+    int maskedCount[APPROX_MASK_COUNT];
+    int remCount;
+
+    maskedCount[0] = 0;
+    // serial calculation, this is too short for parallelization
+    for (uint16_t mask = 1; mask <= 255; mask++)
+    {
+        remCount = ((int)valueCount / 8);
+        maskedCount[mask] = remCount * mask_weights[mask];
+        for (int i = 0; i < valueCount - remCount * 8; i++)
+            maskedCount[mask] += (mask >> (7 - i)) & 1;
+    }
+
+    void* vals_cp;
+    int vals_size;
+
+    // we have to copy values to intermediate array since we are not sure the GPU supports double precision
+    // also we cannot "copy" double to float at binary level due to different sizes and schemas
+    // and finally, we use this monstrosity to avoid passing array of structure instances to OpenCL program
+    if (clSupportsDouble())
+    {
+        vals_size = sizeof(double);
+        vals_cp = new double[valueCount * 2];
+        double* vals_cp_typed = reinterpret_cast<double*>(vals_cp);
+        for (int i = 0; i < valueCount; i++)
+        {
+            vals_cp_typed[i * 2 + 0] = (double)values[i].datetime;
+            vals_cp_typed[i * 2 + 1] = (double)values[i].level;
+        }
+    }
+    else
+    {
+        vals_size = sizeof(float);
+        vals_cp = new float[valueCount * 2];
+        float* vals_cp_typed = reinterpret_cast<float*>(vals_cp);
+        for (int i = 0; i < valueCount; i++)
+        {
+            vals_cp_typed[i * 2 + 0] = (float)values[i].datetime;
+            vals_cp_typed[i * 2 + 1] = (float)values[i].level;
+        }
+    }
+
+    // read-only parameters
+    cl_mem mask_weights_m = clCreateBuffer(program->context, CL_MEM_READ_ONLY, APPROX_MASK_COUNT * sizeof(int), NULL, &ret);
+    cl_mem mask_index_transform_m = clCreateBuffer(program->context, CL_MEM_READ_ONLY, APPROX_MASK_COUNT * 8 * sizeof(int), NULL, &ret);
+    cl_mem values_m = clCreateBuffer(program->context, CL_MEM_READ_ONLY, valueCount * 2 * vals_size, NULL, &ret);
+
+    // write-only parameters
+    cl_mem xcoefs_m = clCreateBuffer(program->context, CL_MEM_WRITE_ONLY, valueCount * APPROX_MASK_COUNT * vals_size * 4, NULL, &ret);
+    cl_mem ycoefs_m = clCreateBuffer(program->context, CL_MEM_WRITE_ONLY, valueCount * APPROX_MASK_COUNT * vals_size * 4, NULL, &ret);
+
+    // copy local data to GPU memory
+    ret = clEnqueueWriteBuffer(program->commandQueue, mask_weights_m, CL_TRUE, 0, APPROX_MASK_COUNT * sizeof(int), mask_weights, 0, NULL, NULL);
+    ret = clEnqueueWriteBuffer(program->commandQueue, mask_index_transform_m, CL_TRUE, 0, APPROX_MASK_COUNT * 8 * sizeof(int), mask_index_transform, 0, NULL, NULL);
+    ret = clEnqueueWriteBuffer(program->commandQueue, values_m, CL_TRUE, 0, valueCount * 2 * vals_size, vals_cp, 0, NULL, NULL);
+
+    cl_event event1;
+
+    // create OpenCL kernel for derivatives calculation
+    cl_kernel kernel = clCreateKernel(program->prog, "catmullrom_calc_parameters", &ret);
+
+    // set the arguments
+    ret = clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&mask_weights_m);
+    ret = clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&mask_index_transform_m);
+    ret = clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&values_m);
+    ret = clSetKernelArg(kernel, 3, sizeof(int), &valueCount);
+    ret = clSetKernelArg(kernel, 4, sizeof(cl_mem), (void *)&xcoefs_m);
+    ret = clSetKernelArg(kernel, 5, sizeof(cl_mem), (void *)&ycoefs_m);
+    ret = clSetKernelArg(kernel, 6, sizeof(float), &tensionParameter);
+
+    // work!
+    size_t local_item_size[] = { 1, 16 };
+    size_t global_item_size[] = { APPROX_MASK_COUNT, ShrRoundUp(16, valueCount) };
+
+    ret = clEnqueueNDRangeKernel(program->commandQueue, kernel, 2, NULL, global_item_size, local_item_size, 0, NULL, &event1);
+
+    clWaitForEvents(1, &event1);
+
+
+    // resize destination vectors
+    for (int mask = 0; mask < APPROX_MASK_COUNT; mask++)
+    {
+        xCoefs[mask].resize(maskedCount[mask]);
+        yCoefs[mask].resize(maskedCount[mask]);
+    }
+
+    // copy calculated parameters to inner vectors to make further value calculation possible
+    // also distinguish by floating point number length (precision)
+    if (clSupportsDouble())
+    {
+        double *tmp = new double[valueCount * APPROX_MASK_COUNT * 4];
+        ret = clEnqueueReadBuffer(program->commandQueue, xcoefs_m, CL_TRUE, 0, valueCount * APPROX_MASK_COUNT * vals_size * 4, tmp, 0, NULL, NULL);
+
+        for (int mask = 0; mask < APPROX_MASK_COUNT; mask++)
+            for (int j = 0; j < maskedCount[mask]; j++)
+                for (int k = 0; k < 4; k++)
+                    xCoefs[mask][j][k] = tmp[mask * valueCount * 4 + j * 4 + k];
+
+        ret = clEnqueueReadBuffer(program->commandQueue, ycoefs_m, CL_TRUE, 0, valueCount * APPROX_MASK_COUNT * vals_size * 4, tmp, 0, NULL, NULL);
+
+        for (int mask = 0; mask < APPROX_MASK_COUNT; mask++)
+            for (int j = 0; j < maskedCount[mask]; j++)
+                for (int k = 0; k < 4; k++)
+                    yCoefs[mask][j][k] = tmp[mask * valueCount * 4 + j * 4 + k];
+
+        free(tmp);
+    }
+    else
+    {
+        float *tmp = new float[valueCount * APPROX_MASK_COUNT * 4];
+        ret = clEnqueueReadBuffer(program->commandQueue, xcoefs_m, CL_TRUE, 0, valueCount * APPROX_MASK_COUNT * vals_size * 4, tmp, 0, NULL, NULL);
+
+        for (int mask = 0; mask < APPROX_MASK_COUNT; mask++)
+            for (int j = 0; j < maskedCount[mask]; j++)
+                for (int k = 0; k < 4; k++)
+                    xCoefs[mask][j][k] = (double)tmp[mask * valueCount * 4 + j * 4 + k];
+
+        ret = clEnqueueReadBuffer(program->commandQueue, ycoefs_m, CL_TRUE, 0, valueCount * APPROX_MASK_COUNT * vals_size * 4, tmp, 0, NULL, NULL);
+
+        for (int mask = 0; mask < APPROX_MASK_COUNT; mask++)
+            for (int j = 0; j < maskedCount[mask]; j++)
+                for (int k = 0; k < 4; k++)
+                    yCoefs[mask][j][k] = (double)tmp[mask * valueCount * 4 + j * 4 + k];
+
+        free(tmp);
+    }
+
+    // flush and release local resources
+
+    ret = clFlush(program->commandQueue);
+    ret = clFinish(program->commandQueue);
+    ret = clReleaseKernel(kernel);
+    ret = clReleaseMemObject(mask_weights_m);
+    ret = clReleaseMemObject(mask_index_transform_m);
+    ret = clReleaseMemObject(values_m);
+    ret = clReleaseMemObject(xcoefs_m);
+    ret = clReleaseMemObject(ycoefs_m);
 }
 
 HRESULT IfaceCalling ApproxCatmullRomSpline::Approximate(TApproximationParams *params)
