@@ -1,4 +1,5 @@
 #include "ApproxCatmullRomSpline.h"
+#include "CommonApproxSupport.h"
 
 #include <iostream>
 #include <thread>
@@ -605,13 +606,9 @@ HRESULT IfaceCalling ApproxCatmullRomSpline::GetLevels(floattype desiredtime, fl
         if (index >= maskedCount - 1)
             break;
 
-        if (index != 0)
-            calctime = (curtime - values[base + offsets[j]].datetime) / (values[base + offsets[j + 1]].datetime - values[base + offsets[j]].datetime);
-        else
-            calctime = (curtime - values[base + offsets[j + 1]].datetime) / (values[base + offsets[j + 1]].datetime - values[base + offsets[j]].datetime);
-
-        // TODO: transform X coordinate (calctime) to time using xCoefs !
-        // now gives slightly different results
+        // we have to solve cubic equation for X coordinate in order to obtain real "time" value for Y coordinate calculation
+        // this solution always lies between 0 and 1 (it's the "time" on curve, and since it's centripetal, it always has only one solution)
+        calctime = Cubic_IdentitySolve(xCoefs[mask][index][3], xCoefs[mask][index][2], xCoefs[mask][index][1], xCoefs[mask][index][0] - curtime);
 
         // no derivation: return absolute value
         if (derivationorder == 0)

@@ -71,6 +71,9 @@
     <ClCompile Include="..\..\src\approx\src\ApproxCatmullRomSpline.cpp">
       <Filter>src\approx\src</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\approx\src\CommonApproxSupport.cpp">
+      <Filter>src\approx\src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\approx\src\CommonApprox.h">
@@ -125,6 +128,9 @@
       <Filter>src\cli</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\approx\src\ApproxCatmullRomSpline.h">
+      <Filter>src\approx\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\approx\src\CommonApproxSupport.h">
       <Filter>src\approx\src</Filter>
     </ClInclude>
   </ItemGroup>

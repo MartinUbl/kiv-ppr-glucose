@@ -142,6 +142,7 @@
     <ClCompile Include="..\..\src\approx\src\ApproxCatmullRomSpline.cpp" />
     <ClCompile Include="..\..\src\approx\src\ApproxQuadraticSpline.cpp" />
     <ClCompile Include="..\..\src\approx\src\CommonApprox.cpp" />
+    <ClCompile Include="..\..\src\approx\src\CommonApproxSupport.cpp" />
     <ClCompile Include="..\..\src\approx\src\GlucoseLevels.cpp" />
     <ClCompile Include="..\..\src\cli\main.cpp" />
     <ClCompile Include="..\..\src\cli\OpenCLLoader.cpp" />
@@ -157,6 +158,7 @@
     <ClInclude Include="..\..\src\approx\src\ApproxCatmullRomSpline.h" />
     <ClInclude Include="..\..\src\approx\src\ApproxQuadraticSpline.h" />
     <ClInclude Include="..\..\src\approx\src\CommonApprox.h" />
+    <ClInclude Include="..\..\src\approx\src\CommonApproxSupport.h" />
     <ClInclude Include="..\..\src\approx\src\GlucoseLevels.h" />
     <ClInclude Include="..\..\src\approx\src\precalculated.h" />
     <ClInclude Include="..\..\src\cli\appconfig.h" />
