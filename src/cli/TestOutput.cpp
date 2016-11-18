@@ -20,22 +20,29 @@ void VisualizeSVG(const char* filename, floattype starttime, floattype step, siz
 
         floattype base = levs[0].datetime * stretchCoefX;
 
-        for (size_t i = 0; i < 48; i++)
-        {
-            if (consoleout)
-                std::cout << "Original time: " << levs[i].datetime - base << ", value: " << levs[i].level << std::endl;
-
-            ofs << "<circle stroke=\"#FF0000\" fill=\"#FFFFFF\" r=\"5\" cx=\"" << (levs[i].datetime) * stretchCoefX - base << "\" cy=\"" << (invertBase - levs[i].level) * stretchCoefY << "\" />" << std::endl;
-        }
-
         floattype tim = starttime;
+        floattype px, py;
         for (size_t i = 0; i < count; i++)
         {
             if (consoleout)
                 std::cout << "Time: " << tim - base << ", value: " << levels[i] << std::endl;
 
-            ofs << "<circle stroke=\"#0000FF\" fill=\"#FFFFFF\" r=\"2\" cx=\"" << (tim) * stretchCoefX - base << "\" cy=\"" << (invertBase - levels[i]) * stretchCoefY << "\" />" << std::endl;
+            // skip the first, just store its value later to be able to draw line in next iteration
+            // also skip too large jumps
+            if (i > 0 && fabs(py - (invertBase - levels[i]) * stretchCoefY) < 8.0 * stretchCoefY)
+                ofs << "<line stroke=\"#0000FF\" stroke-width=\"2\" x1=\"" << px << "\" y1=\"" << py << "\" x2=\"" << (tim) * stretchCoefX - base << "\" y2=\"" << (invertBase - levels[i]) * stretchCoefY << "\" />" << std::endl;
+
+            px = (tim)* stretchCoefX - base;
+            py = (invertBase - levels[i]) * stretchCoefY;
             tim += step;
+        }
+
+        for (size_t i = 0; i < 48; i++)
+        {
+            if (consoleout)
+                std::cout << "Original time: " << levs[i].datetime - base << ", value: " << levs[i].level << std::endl;
+
+            ofs << "<circle stroke=\"#FF0000\" fill=\"#FF0000\" r=\"3\" cx=\"" << (levs[i].datetime) * stretchCoefX - base << "\" cy=\"" << (invertBase - levs[i].level) * stretchCoefY << "\" />" << std::endl;
         }
 
         ofs << "</svg>";
