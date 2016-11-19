@@ -20,6 +20,7 @@ class ApproxAkimaSpline : public CCommonApprox
         HRESULT IfaceCalling Approximate(TApproximationParams *params);
         HRESULT IfaceCalling GetLevels(floattype desiredtime, floattype stepping, size_t count,
                                        floattype *levels, size_t *filled, size_t derivationorder);
+        HRESULT IfaceCalling GetBounds(TGlucoseLevelBounds *bounds);
 
     protected:
 

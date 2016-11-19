@@ -5,12 +5,12 @@
 #include "../../common/iface/ApproxIface.h"
 #include "..\..\common\rtl\hresult.h"
 #include "..\..\common\rtl\referencedImpl.h"
-
+#include "../../common/rtl/LogicalClockImpl.h"
 
 #pragma warning( push )
 #pragma warning( disable : 4250 )   // C4250 - 'class1' : inherits 'class2::member' via dominance
 
-class CGlucoseLevels : public IGlucoseLevels, public virtual CReferenced
+class CGlucoseLevels : public IGlucoseLevels, public virtual CReferenced, public virtual CLogical_Clock
 {
     public:
         virtual ~CGlucoseLevels() {};

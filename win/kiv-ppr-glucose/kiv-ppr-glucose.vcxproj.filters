@@ -77,6 +77,9 @@
     <ClCompile Include="..\..\src\approx\src\ApproxHermiteSpline.cpp">
       <Filter>src\approx\src</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\common\rtl\LogicalClockImpl.cpp">
+      <Filter>src\common\rtl</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\approx\src\CommonApprox.h">
@@ -138,6 +141,12 @@
     </ClInclude>
     <ClInclude Include="..\..\src\approx\src\ApproxHermiteSpline.h">
       <Filter>src\approx\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\common\rtl\LogicalClockImpl.h">
+      <Filter>src\common\rtl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\common\iface\LogicalClockIface.h">
+      <Filter>src\common\iface</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

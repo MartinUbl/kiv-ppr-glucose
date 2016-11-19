@@ -3,6 +3,7 @@
 #include "../../common/iface/ApproxIface.h"
 #include "../../common/rtl/hresult.h"
 #include "../../common/rtl/referencedImpl.h"
+#include "../../common/rtl/LogicalClockImpl.h"
 
 extern const floattype dfYOffset;   // some interpolation requires negative values
                                     // and it is impossible to compute real ln of a negative number
@@ -11,7 +12,7 @@ extern const floattype dfYOffset;   // some interpolation requires negative valu
 #pragma warning(push )
 #pragma warning( disable : 4250 )   // C4250 - 'class1' : inherits 'class2::member' via dominance
 
-class CCommonApprox : public IApproximatedGlucoseLevels, public virtual CReferenced
+class CCommonApprox : public IApproximatedGlucoseLevels, public virtual CReferenced, public virtual CLogical_Clock
 {
     protected:
         IGlucoseLevels *mEnumeratedLevels;

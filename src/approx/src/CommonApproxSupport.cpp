@@ -1,4 +1,6 @@
 #include "CommonApproxSupport.h"
+#include "precalculated.h"
+#include <tbb\tbb.h>
 
 floattype Cubic_IdentitySolve(floattype a, floattype b, floattype c, floattype d)
 {
@@ -59,4 +61,50 @@ floattype Cubic_IdentitySolve(floattype a, floattype b, floattype c, floattype d
     }
 
     return 0;
+}
+
+CFindMaskedBounds::CFindMaskedBounds(TGlucoseLevel* levels, uint8_t mask, uint32_t skipSides[2]) : mLevels(levels), mMask(mask), mSkipSides{ skipSides[0], skipSides[1] }
+{
+    mBounds.MaxLevel = mLevels[mask_shift_base[mMask][0 + skipSides[0]]].level;
+    mBounds.MaxTime = mLevels[mask_shift_base[mMask][0 + skipSides[0]]].datetime;
+    mBounds.MinLevel = mBounds.MaxLevel;
+    mBounds.MinTime = mBounds.MaxTime;
+}
+
+CFindMaskedBounds::CFindMaskedBounds(CFindMaskedBounds& x, tbb::split) : mLevels(x.mLevels), mBounds(x.mBounds), mMask(x.mMask), mSkipSides{x.mSkipSides[0], mSkipSides[1]}
+{
+    //
+}
+
+void CFindMaskedBounds::operator()(const tbb::blocked_range<size_t>& r)
+{
+    TGlucoseLevel *levels = mLevels;
+    TGlucoseLevelBounds bounds = mBounds;
+    size_t end = r.end();
+    size_t pos;
+
+    for (size_t i = r.begin(); i != end; ++i)
+    {
+        if (i < mSkipSides[0] || i >= mSkipSides[1])
+            continue;
+
+        pos = 8 * (i / mask_weights[mMask]) + mask_index_transform[mMask][i % mask_weights[mMask]];
+
+        bounds.MaxLevel = max(bounds.MaxLevel, levels[pos].level);
+        bounds.MinLevel = min(bounds.MinLevel, levels[pos].level);
+
+        bounds.MaxTime = max(bounds.MaxTime, levels[pos].datetime);
+        bounds.MinTime = min(bounds.MinTime, levels[pos].datetime);
+    }
+
+    mBounds = bounds;
+}
+
+void CFindMaskedBounds::join(const CFindMaskedBounds& y)
+{
+    mBounds.MaxLevel = max(mBounds.MaxLevel, y.mBounds.MaxLevel);
+    mBounds.MinLevel = min(mBounds.MinLevel, y.mBounds.MinLevel);
+
+    mBounds.MaxTime = max(mBounds.MaxTime, y.mBounds.MaxTime);
+    mBounds.MinTime = min(mBounds.MinTime, y.mBounds.MinTime);
 }

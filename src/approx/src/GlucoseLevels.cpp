@@ -23,9 +23,9 @@ HRESULT IfaceCalling CGlucoseLevels::GetLevelsCount(size_t* count)
 HRESULT IfaceCalling CGlucoseLevels::SetLevelsCount(size_t count)
 {
     mLevels.resize(count);
+    CLogical_Clock::Signal_Clock();
     return S_OK;
 }
-
 
 class CFindBounds
 {

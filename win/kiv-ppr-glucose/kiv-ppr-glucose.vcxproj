@@ -150,6 +150,7 @@
     <ClCompile Include="..\..\src\cli\Statistics.cpp" />
     <ClCompile Include="..\..\src\cli\TestOutput.cpp" />
     <ClCompile Include="..\..\src\common\iface\ApproxIface.cpp" />
+    <ClCompile Include="..\..\src\common\rtl\LogicalClockImpl.cpp" />
     <ClCompile Include="..\..\src\common\rtl\referencedImpl.cpp" />
     <ClCompile Include="..\..\src\loaders\Conversion.cpp" />
     <ClCompile Include="..\..\src\loaders\SQLiteLoader.cpp" />
@@ -168,9 +169,11 @@
     <ClInclude Include="..\..\src\cli\Statistics.h" />
     <ClInclude Include="..\..\src\cli\TestOutput.h" />
     <ClInclude Include="..\..\src\common\iface\ApproxIface.h" />
+    <ClInclude Include="..\..\src\common\iface\LogicalClockIface.h" />
     <ClInclude Include="..\..\src\common\iface\referencedIface.h" />
     <ClInclude Include="..\..\src\common\rtl\cfixes.h" />
     <ClInclude Include="..\..\src\common\rtl\hresult.h" />
+    <ClInclude Include="..\..\src\common\rtl\LogicalClockImpl.h" />
     <ClInclude Include="..\..\src\common\rtl\referencedImpl.h" />
     <ClInclude Include="..\..\src\loaders\Conversion.h" />
     <ClInclude Include="..\..\src\loaders\LoaderIface.h" />

@@ -1,4 +1,5 @@
 #include "ApproxAkimaSpline.h"
+#include "CommonApproxSupport.h"
 
 #include <iostream>
 #include <thread>
@@ -758,6 +759,30 @@ HRESULT IfaceCalling ApproxAkimaSpline::Approximate(TApproximationParams *params
     {
         CalculateParameters_OpenCL();
     }
+
+    CLogical_Clock::Signal_Clock();
+
+    return S_OK;
+}
+
+HRESULT IfaceCalling ApproxAkimaSpline::GetBounds(TGlucoseLevelBounds *bounds)
+{
+    size_t remCount, maskedCount;
+
+    remCount = (valueCount / 8);
+    maskedCount = remCount * mask_weights[appCurrentTestMask];
+    for (int i = 0; i < valueCount - remCount * 8; i++)
+        maskedCount += (appCurrentTestMask >> (7 - i)) & 1;
+
+    if (maskedCount < 1)
+        return S_FALSE;
+
+    uint32_t skipSides[2] = { 0, maskedCount };
+
+    CFindMaskedBounds fb(values, appCurrentTestMask, skipSides);
+    tbb::parallel_reduce(tbb::blocked_range<size_t>(0, maskedCount), fb);
+
+    *bounds = fb.mBounds;
 
     return S_OK;
 }

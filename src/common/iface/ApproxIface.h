@@ -1,6 +1,7 @@
 #pragma once
 
 #include "referencedIface.h"
+#include "LogicalClockIface.h"
 
 typedef double floattype;
 
@@ -105,7 +106,7 @@ extern const TApproximationParams dfApproximationParams;
 // recommended bufer sizes
 const size_t rbsApproxBufSize = 10240;
 
-class IGlucoseLevels : public virtual IReferenced
+class IGlucoseLevels : public virtual IReferenced, public virtual ILogical_Clock
 {
     public:
         virtual HRESULT IfaceCalling GetLevels(TGlucoseLevel** levels) = 0;
@@ -117,7 +118,7 @@ class IGlucoseLevels : public virtual IReferenced
         virtual HRESULT IfaceCalling GetBounds(TGlucoseLevelBounds *bounds) = 0;
 };
 
-class IApproximatedGlucoseLevels : public virtual IReferenced
+class IApproximatedGlucoseLevels : public virtual IReferenced, public virtual ILogical_Clock
 {
     public:
         virtual HRESULT IfaceCalling Approximate(TApproximationParams *params) = 0;
@@ -141,4 +142,6 @@ class IApproximatedGlucoseLevels : public virtual IReferenced
            levels will be filled with approximated glucose levels at respective indexes for respective times
            first *filled  levels will be calculated
         */
+
+        virtual HRESULT IfaceCalling GetBounds(TGlucoseLevelBounds *bounds) = 0;
 };
