@@ -606,9 +606,18 @@ HRESULT IfaceCalling ApproxCatmullRomSpline::GetLevels(floattype desiredtime, fl
         if (index >= maskedCount - 1)
             break;
 
-        // we have to solve cubic equation for X coordinate in order to obtain real "time" value for Y coordinate calculation
-        // this solution always lies between 0 and 1 (it's the "time" on curve, and since it's centripetal, it always has only one solution)
-        calctime = Cubic_IdentitySolve(xCoefs[mask][index][3], xCoefs[mask][index][2], xCoefs[mask][index][1], xCoefs[mask][index][0] - curtime);
+        // sometimes when using OpenCL we lose precision by converting to single precision float number due to lack of support for double precision
+        // the threshold is very close to twice the value of float epsilon (which is still safely within valid range in double precision, and will
+        // have no effect when not reducing precision). This value means we are very close to border value, and any value further would result to
+        // inaccurate calculation, and makes "spikes" in plot. "Round" to something very close to 1 from the left to preserve accuracy.
+        if (appConcurrency == ConcurrencyType::ct_parallel_opencl && !clSupportsDouble() && values[base + offsets[j + 1]].datetime - curtime < 2*FLT_EPSILON)
+            calctime = 1.0 - FLT_EPSILON;
+        else
+        {
+            // we have to solve cubic equation for X coordinate in order to obtain real "time" value for Y coordinate calculation
+            // this solution always lies between 0 and 1 (it's the "time" on curve, and since it's centripetal, it always has only one solution)
+            calctime = Cubic_IdentitySolve(xCoefs[mask][index][3], xCoefs[mask][index][2], xCoefs[mask][index][1], xCoefs[mask][index][0] - curtime);
+        }
 
         // no derivation: return absolute value
         if (derivationorder == 0)
