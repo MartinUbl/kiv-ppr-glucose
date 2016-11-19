@@ -45,5 +45,6 @@ typedef struct
 const clProgramLocator clPrograms[] = {
     { apxmQuadraticSpline, "ApproxQuadraticSpline.cl" },
     { apxmAkimaSpline, "ApproxAkimaSpline.cl" },
-    { apxmCatmullRomSpline, "ApproxCatmullRomSpline.cl" }
+    { apxmCatmullRomSpline, "ApproxCatmullRomSpline.cl" },
+    { apxmCubicHermiteSpline, "ApproxHermiteSpline.cl" }
 };

@@ -6,6 +6,7 @@
 #include "../approx/src/ApproxQuadraticSpline.h"
 #include "../approx/src/ApproxAkimaSpline.h"
 #include "../approx/src/ApproxCatmullRomSpline.h"
+#include "../approx/src/ApproxHermiteSpline.h"
 #include "appconfig.h"
 #include "OpenCLLoader.h"
 #include "Statistics.h"
@@ -64,7 +65,8 @@ static void printHelp(const char* progname)
     std::cout << std::endl;
     std::cout << "Available methods: quadratic (q) - quadratic spline" << std::endl;
     std::cout << "                   akima (a) - akima spline" << std::endl;
-    std::cout << "                   ??? (?) - ?" << std::endl;
+    std::cout << "                   catmullrom (c) - centripetal catmull-rom spline" << std::endl;
+    std::cout << "                   hermite (h) - cubic hermite spline" << std::endl;
     std::cout << std::endl;
     std::cout << "Available concurrency: serial (s) - serial version" << std::endl;
     std::cout << "                       threads (t) - standard C++ threads" << std::endl;
@@ -83,6 +85,8 @@ size_t parseApproxMethod(const char* str)
         return apxmAkimaSpline;
     else if (strcmp(str, "catmullrom") == 0 || strcmp(str, "c") == 0)
         return apxmCatmullRomSpline;
+    else if (strcmp(str, "hermite") == 0 || strcmp(str, "h") == 0)
+        return apxmCubicHermiteSpline;
 
     return 0;
 }
@@ -238,6 +242,8 @@ int main(int argc, char** argv)
             std::cout << "akima spline";
         else if (appApproxMethod == apxmCatmullRomSpline)
             std::cout << "catmull-rom spline";
+        else if (appApproxMethod == apxmCubicHermiteSpline)
+            std::cout << "cubic hermite spline";
         else
             std::cout << "unknown";
         std::cout << std::endl;
@@ -303,6 +309,8 @@ int main(int argc, char** argv)
             approxVect[i] = new ApproxAkimaSpline(vec[i]);
         else if (appApproxMethod == apxmCatmullRomSpline)
             approxVect[i] = new ApproxCatmullRomSpline(vec[i]);
+        else if (appApproxMethod == apxmCubicHermiteSpline)
+            approxVect[i] = new ApproxHermiteSpline(vec[i]);
     }
 
     if (!appSilentMode)

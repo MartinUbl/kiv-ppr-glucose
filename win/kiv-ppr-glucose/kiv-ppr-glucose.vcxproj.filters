@@ -74,6 +74,9 @@
     <ClCompile Include="..\..\src\approx\src\CommonApproxSupport.cpp">
       <Filter>src\approx\src</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\approx\src\ApproxHermiteSpline.cpp">
+      <Filter>src\approx\src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\approx\src\CommonApprox.h">
@@ -133,6 +136,9 @@
     <ClInclude Include="..\..\src\approx\src\CommonApproxSupport.h">
       <Filter>src\approx\src</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\src\approx\src\ApproxHermiteSpline.h">
+      <Filter>src\approx\src</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Intel_OpenCL_Build_Rules Include="..\..\src\approx\src\ApproxAkimaSpline.cl">
@@ -142,6 +148,9 @@
       <Filter>OpenCL Files</Filter>
     </Intel_OpenCL_Build_Rules>
     <Intel_OpenCL_Build_Rules Include="..\..\src\approx\src\ApproxCatmullRomSpline.cl">
+      <Filter>OpenCL Files</Filter>
+    </Intel_OpenCL_Build_Rules>
+    <Intel_OpenCL_Build_Rules Include="..\..\src\approx\src\ApproxHermiteSpline.cl">
       <Filter>OpenCL Files</Filter>
     </Intel_OpenCL_Build_Rules>
   </ItemGroup>
