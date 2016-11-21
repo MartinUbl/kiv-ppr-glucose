@@ -1,0 +1,5 @@
+*
+!*.bst
+!*.cls
+!*.tex
+!.gitignore
