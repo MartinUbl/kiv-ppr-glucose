@@ -136,66 +136,6 @@ void CalculateAndPrintStatsForMask(size_t cur, std::vector<CGlucoseLevels*> &lev
 
     floattype minval, maxval, med, fquart, tquart, avg, deviation;
 
-    /*
-    CalculateStats(errors[ERR_ALL], avg, minval, fquart, med, tquart, maxval, deviation);
-    std::cout << std::endl << "Absolute errors: " << std::endl;
-    std::cout << "All: " << std::endl;
-    std::cout << "AVG: " << avg << std::endl;
-    std::cout << "0Q:  " << minval << std::endl;
-    std::cout << "1Q:  " << fquart << std::endl;
-    std::cout << "2Q:  " << med << std::endl;
-    std::cout << "3Q:  " << tquart << std::endl;
-    std::cout << "4Q:  " << maxval << std::endl;
-    std::cout << "Deviation: " << deviation << std::endl;
-    CalculateStats(errors[ERR_ZERO], avg, minval, fquart, med, tquart, maxval, deviation);
-    std::cout << "Zero-masked: " << std::endl;
-    std::cout << "AVG: " << avg << std::endl;
-    std::cout << "0Q:  " << minval << std::endl;
-    std::cout << "1Q:  " << fquart << std::endl;
-    std::cout << "2Q:  " << med << std::endl;
-    std::cout << "3Q:  " << tquart << std::endl;
-    std::cout << "4Q:  " << maxval << std::endl;
-    std::cout << "Deviation: " << deviation << std::endl;
-    CalculateStats(errors[ERR_ONE], avg, minval, fquart, med, tquart, maxval, deviation);
-    std::cout << "One-masked: " << std::endl;
-    std::cout << "AVG: " << avg << std::endl;
-    std::cout << "0Q:  " << minval << std::endl;
-    std::cout << "1Q:  " << fquart << std::endl;
-    std::cout << "2Q:  " << med << std::endl;
-    std::cout << "3Q:  " << tquart << std::endl;
-    std::cout << "4Q:  " << maxval << std::endl;
-    std::cout << "Deviation: " << deviation << std::endl;
-
-    CalculateStats(relErrors[ERR_ALL], avg, minval, fquart, med, tquart, maxval, deviation);
-    std::cout << std::endl << "Relative errors: " << std::endl;
-    std::cout << "All: " << std::endl;
-    std::cout << "AVG: " << avg << std::endl;
-    std::cout << "0Q:  " << minval << std::endl;
-    std::cout << "1Q:  " << fquart << std::endl;
-    std::cout << "2Q:  " << med << std::endl;
-    std::cout << "3Q:  " << tquart << std::endl;
-    std::cout << "4Q:  " << maxval << std::endl;
-    std::cout << "Deviation: " << deviation << std::endl;
-    CalculateStats(relErrors[ERR_ZERO], avg, minval, fquart, med, tquart, maxval, deviation);
-    std::cout << "Zero-masked: " << std::endl;
-    std::cout << "AVG: " << avg << std::endl;
-    std::cout << "0Q:  " << minval << std::endl;
-    std::cout << "1Q:  " << fquart << std::endl;
-    std::cout << "2Q:  " << med << std::endl;
-    std::cout << "3Q:  " << tquart << std::endl;
-    std::cout << "4Q:  " << maxval << std::endl;
-    std::cout << "Deviation: " << deviation << std::endl;
-    CalculateStats(relErrors[ERR_ONE], avg, minval, fquart, med, tquart, maxval, deviation);
-    std::cout << "One-masked: " << std::endl;
-    std::cout << "AVG: " << avg << std::endl;
-    std::cout << "0Q:  " << minval << std::endl;
-    std::cout << "1Q:  " << fquart << std::endl;
-    std::cout << "2Q:  " << med << std::endl;
-    std::cout << "3Q:  " << tquart << std::endl;
-    std::cout << "4Q:  " << maxval << std::endl;
-    std::cout << "Deviation: " << deviation << std::endl;
-    */
-
     CalculateStats(errors[ERR_ALL], avg, minval, fquart, med, tquart, maxval, deviation);
     std::cout << avg << ";" << minval << ";" << fquart << ";" << med << ";" << tquart << ";" << maxval << ";" << deviation;
     std::cout << ";";
@@ -241,4 +181,11 @@ void CalculateAndPrintStats(std::vector<CGlucoseLevels*> &levelsVector, std::vec
             CalculateAndPrintStatsForMask(segment, levelsVector, approxVector);
         }
     }
+
+    std::cout << std::endl;
+
+    if (appApproxMethod == apxmQuadraticSpline || appApproxMethod == apxmAkimaSpline || appApproxMethod == apxmCatmullRomSpline || appApproxMethod == apxmCubicHermiteSpline)
+        std::cout << "The curve is continuously differentiable (C1 continuous)";
+    else // no such case in this semestral work
+        std::cout << "The curve is NOT continuously differentiable (not C1 continuous)";
 }

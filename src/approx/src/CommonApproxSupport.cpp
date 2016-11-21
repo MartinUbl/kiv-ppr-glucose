@@ -63,7 +63,7 @@ floattype Cubic_IdentitySolve(floattype a, floattype b, floattype c, floattype d
     return 0;
 }
 
-CFindMaskedBounds::CFindMaskedBounds(TGlucoseLevel* levels, uint8_t mask, uint32_t skipSides[2]) : mLevels(levels), mMask(mask), mSkipSides{ skipSides[0], skipSides[1] }
+CFindMaskedBounds::CFindMaskedBounds(TGlucoseLevel* levels, uint8_t mask, size_t skipSides[2]) : mLevels(levels), mMask(mask), mSkipSides{ skipSides[0], skipSides[1] }
 {
     mBounds.MaxLevel = mLevels[mask_shift_base[mMask][0 + skipSides[0]]].level;
     mBounds.MaxTime = mLevels[mask_shift_base[mMask][0 + skipSides[0]]].datetime;

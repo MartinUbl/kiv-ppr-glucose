@@ -20,7 +20,7 @@ class CFindMaskedBounds
 {
     public:
         // default "parent" constructor
-        CFindMaskedBounds(TGlucoseLevel* levels, uint8_t mask, uint32_t skipSides[2]);
+        CFindMaskedBounds(TGlucoseLevel* levels, uint8_t mask, size_t skipSides[2]);
 
         // split constructor for TBB
         CFindMaskedBounds(CFindMaskedBounds& x, tbb::split);
@@ -40,5 +40,5 @@ class CFindMaskedBounds
         // mask used for calculation
         uint8_t mMask;
         // left and right limitation of index assigned for current run
-        uint32_t mSkipSides[2];
+        size_t mSkipSides[2];
 };

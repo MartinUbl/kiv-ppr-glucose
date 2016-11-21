@@ -777,7 +777,7 @@ HRESULT IfaceCalling ApproxAkimaSpline::GetBounds(TGlucoseLevelBounds *bounds)
     if (maskedCount < 1)
         return S_FALSE;
 
-    uint32_t skipSides[2] = { 0, maskedCount };
+    size_t skipSides[2] = { 0, maskedCount };
 
     CFindMaskedBounds fb(values, appCurrentTestMask, skipSides);
     tbb::parallel_reduce(tbb::blocked_range<size_t>(0, maskedCount), fb);

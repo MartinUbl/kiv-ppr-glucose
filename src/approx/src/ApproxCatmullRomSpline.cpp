@@ -568,7 +568,7 @@ HRESULT IfaceCalling ApproxCatmullRomSpline::GetBounds(TGlucoseLevelBounds *boun
     if (maskedCount < 1)
         return S_FALSE;
 
-    uint32_t skipSides[2] = { 1, maskedCount - 1 };
+    size_t skipSides[2] = { 1, maskedCount - 1 };
 
     CFindMaskedBounds fb(values, appCurrentTestMask, skipSides);
     tbb::parallel_reduce(tbb::blocked_range<size_t>(0, maskedCount), fb);
