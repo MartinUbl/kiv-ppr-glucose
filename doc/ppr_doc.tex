@@ -8,6 +8,8 @@
 \usepackage{enumitem}
 \usepackage{amsmath}
 \usepackage{url}
+\usepackage{listings}
+\usepackage{caption}
 
 \usepackage[pdftex]{hyperref}
 \hypersetup{colorlinks=true,
@@ -140,7 +142,7 @@ Konkrétně jsem proto zvolil paralelizaci pomocí C++11 vláken, Intel TBB a Op
 
 Výběr metody paralelizace pomocí C++11 vláken je odůvodněn tím, že jsem chtěl blíže znát poměr urychlení za použití jiného druhu plánovače a přidělování práce, v poměru ke klasickým vláknům plánovaným operačním systémem (bez prostředníka) a modelu farmer-worker.
 
-Paralelizace pomocí Intel TBB byla zvolena proto, že se jedná o poměrně rozšířenou pokročilou metodu paralelizace založenou na modelu tasků. Knihovna Intel TBB dále také zavádí dodatečné optimalizace, které dovolí program přizpůsobit pro konkrétní hardware.
+Paralelizace pomocí Intel TBB byla zvolena proto, že se jedná o poměrně rozšířenou pokročilou metodu paralelizace založenou na modelu tasků.\\ Knihovna Intel TBB dále také zavádí dodatečné optimalizace, které dovolí program přizpůsobit pro konkrétní hardware.
 
 OpenCL jsem vybral proto, že mě samotného zajímalo, jak tato metoda funguje, a chtěl jsem znát podstatu fungování výpočtů na GPGPU, od kterého například C++AMP částečně odstiňuje. Naopak technologii CUDA jsem nevybral proto, že nevlastním grafickou kartu od společnosti nVidia, na které je tato technologie silně závislá.
 
@@ -489,7 +491,7 @@ Následně je cyklicky za použití masky a soustavného posouvání indexu pomo
 
 Nezávislou proměnnou je v případě kvadratického a Akima spline samotné $x$, jakožto i vstupní parametr metody \texttt{\justify GetLevels}, do Hermite a centripetal Catmull-Rom spline však vstupuje parametr času. Ten je třeba zpětným řešením rovnic vyjádřit. Jelikož si u obou těchto metod můžeme být jisti, že parametr času $t$ lze vypočíst z kubické rovnice pro souřadnici $x$, stejně jako že pro každou hodnotu $x$ z intervalu $\langle 0 ; 1 \rangle$ existuje právě jedna hodnota $t$ z téhož intervalu, lze rovnici řešit klasickou metodou pro řešení kubických rovnic, ale použít pouze první reálný výsledek (bez imaginární části), který spadá do tohoto intervalu. Ten bude vždy právě jeden.
 
-\section{Výpočet statistik}
+\section{Výpočet statistik}\label{impl:stat}
 
 Výpočet statistik je zcela odděleným procesem z pohledu aplikace. Pro každý bod vstupních dat je volána metoda \texttt{\justify GetLevels}, a to pro naplnění jedné konkrétní hodnoty, pomocí které je spočtena absolutní a relativní chyba, a následně dalším voláním i hodnota derivace, kde je zkoumána chyba absolutní. Postupně jsou takto naplněna tři dvourozměrná pole hodnot, představující absolutní a relativní chyby interpolovaných hodnot každého bodu v každé masce a absolutní chyby derivace v každé masce.
 
@@ -497,16 +499,126 @@ Z těchto hodnot jsou poté vypočteny požadované statistické ukazatele - min
 
 \chapter{Uživatelská dokumentace}
 
+V této části je popsán postup sestavení programu a návod na jeho obsluhu. 
+
 \section{Sestavení programu}
+
+Zdrojové kódy programu zahrnují i solution pro IDE Microsoft Visual Studio verze 2015, a to v podsložce \texttt{\justify win/} pod názvem \texttt{\justify kiv-ppr-glucose.sln}.
+
+Tuto solution stačí pomocí programu Visual Studio 2015 otevřít a vybrat ve výběrových boxech požadované parametry kompilace - nejpravděpodobněji půjde o kombinaci \texttt{Release} módu kompilace pro \texttt{x64} (x86\_64) architekturu.
+
+Následně stačí stisknout klávesu \texttt{F7}, nebo z programového menu vybrat položku \emph{Build $\rightarrow$ Build solution}.
+
+Výsledný zkompilovaný soubor lze nalézt ve složce \texttt{compiled/Release/} (případně \texttt{compiled/Debug/} podle zvolené konfigurace) pod názvem\\ \texttt{\justify kiv-ppr-glucose.exe}.
 
 \section{Ovládání programu, parametry}
 
+Program lze ovládat pouze přes konzolové rozhraní pomocí parametrů. Možnými parametry a jejich hodnotami jsou:
 
+\begin{itemize}[noitemsep]
+	\item \texttt{-i <soubor>}
+		\begin{itemize}[noitemsep]
+			\item definuje vstupní soubor podporovaného formátu (SQLite3)
+			\item povinný
+		\end{itemize}
+	\item \texttt{-id <driver>}
+		\begin{itemize}[noitemsep]
+			\item definuje formát vstupního souboru
+			\item hodnoty:
+				\begin{itemize}[noitemsep]
+					\item \texttt{sqlite} - SQLite3 souborová databáze
+				\end{itemize} 
+		\end{itemize}
+	\item \texttt{-v}
+		\begin{itemize}[noitemsep]
+			\item verbose mód, výstup stavových hlášek na konzoli
+		\end{itemize}
+	\item \texttt{-w <počet>}
+		\begin{itemize}[noitemsep]
+			\item definuje počet vláken v případě použití paralelizace v podobě C++11 vláken
+		\end{itemize}
+	\item \texttt{-m <metoda>}
+		\begin{itemize}[noitemsep]
+			\item definuje interpolační metodu
+			\item povinný
+			\item hodnoty:
+				\begin{itemize}[noitemsep]
+					\item \texttt{q} nebo \texttt{quadratic} - kvadratický spline
+					\item \texttt{a} nebo \texttt{akima} - Akima spline
+					\item \texttt{c} nebo \texttt{catmullrom} - centripetal Catmull-Rom spline
+					\item \texttt{h} nebo \texttt{hermite} - kubický Hermite spline
+				\end{itemize} 
+		\end{itemize}
+	\item \texttt{-c <typ>}
+		\begin{itemize}[noitemsep]
+			\item definuje typ paralelizace
+			\item povinný
+			\item hodnoty:
+				\begin{itemize}[noitemsep]
+					\item \texttt{s} nebo \texttt{serial} - sériový výpočet
+					\item \texttt{tbb} - Intel TBB
+					\item \texttt{t} nebo \texttt{threads} - C++11 vlákna
+					\item \texttt{cl} nebo \texttt{opencl} - OpenCL
+				\end{itemize} 
+		\end{itemize}
+	\item \texttt{-nostat}
+		\begin{itemize}[noitemsep]
+			\item po skončení výpočtu se nebudou vypisovat statistiky na konzoli
+		\end{itemize}
+\end{itemize}
+
+Význam většiny parametrů je jednoznačný. Již ale nemusí být zřejmé využití parametru \texttt{-nostat}. Tento parametr byl přidán proto, aby bylo možné snadno měřit čas výpočtu parametrů interpolačních křivek. Lze totiž v kombinaci s parametrem \texttt{-v} v konzoli vidět, jak dlouho samotné výpočty trvaly.
+
+Program může být spuštěn například tímto příkazem:
+\begin{verbatim}
+kiv-ppr-glucose.exe -i db.sqlite -m akima -c tbb
+\end{verbatim}
+
+\section{Výstup}
+
+Výstupem programu za předpokladu nepoužití modifikátorů pro ladicí výstupy je výstup na konzoli ve formátu CSV, který obsahuje požadované statistické ukazatele uvedené v kapitole \ref{impl:stat}.
+
+Typicky může uživatel chtít přesměrovat výstup z konzole do souboru, aby mohl vygenerovaný CSV soubor otevřít v libovolném tabulkovém editoru. To lze provést standardními prostředky shellu, například takto:
+
+\begin{verbatim}
+kiv-ppr-glucose.exe -i db.sqlite -m akima -c tbb > stats.csv
+\end{verbatim}
 
 
 \chapter{Výsledky}
 
+V této kapitole jsou zhodnoceny dosažené výsledky z technického hlediska, porovnání časů vykonávání a také požadované metriky související s urychlením při paralelizaci.
+
 \section{Zhodnocení interpolačních metod}
+
+...
+
+\begin{figure}
+\centering
+\captionsetup{width=1.0\textwidth}
+\begin{minipage}[ht]{0.65\textwidth}
+	\includegraphics[width=\linewidth]{img/sample-quad.png}
+	\caption{Výřez průběhu kvadratického spline}
+\end{minipage}
+
+\begin{minipage}[ht]{0.65\textwidth}
+	\includegraphics[width=\linewidth]{img/sample-akima.png}
+	\caption{Výřez průběhu Akima spline}
+\end{minipage}
+
+\begin{minipage}[ht]{0.65\textwidth}
+	\includegraphics[width=\linewidth]{img/sample-hermite.png}
+	\caption{Výřez průběhu Hermite spline s parametrem $\tau = 0.5$}
+\end{minipage}
+
+\begin{minipage}[ht]{0.65\textwidth}
+	\includegraphics[width=\linewidth]{img/sample-catmullrom.png}
+	\caption{Výřez průběhu Catmull-Rom spline s centripetal parametrizací}
+\end{minipage}
+
+\end{figure}
+
+
 
 \section{Porovnání algoritmů}
 
