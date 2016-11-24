@@ -32,7 +32,7 @@ LoaderType appLoaderType;
 uint8_t appCurrentTestMask;
 
 // should we create testing SVG output? (1 = true, anything else = false)
-#define DEBUG_SVG_PRINT 1
+#define DEBUG_SVG_PRINT 0
 
 // reduces all times by minimum of all times - causes less precision loss
 static floattype reduceLevels(CGlucoseLevels* lvls)
@@ -118,7 +118,7 @@ int parseCLIArgs(int argc, char** argv)
     appApproxMethod = 0;
     appConcurrency = ConcurrencyType::ct_none;
     appLoaderType = LoaderType::SQLiteLoaderType;
-    appSilentMode = false;
+    appSilentMode = true;
     appPrintStatistics = true;
     appWorkerCount = 1;
 
@@ -179,9 +179,9 @@ int parseCLIArgs(int argc, char** argv)
             else
                 std::cerr << "No worker count specified after -w parameter." << std::endl;
         }
-        else if (strcmp(argv[i], "-s") == 0)
+        else if (strcmp(argv[i], "-v") == 0)
         {
-            appSilentMode = true;
+            appSilentMode = false;
         }
         else if (strcmp(argv[i], "-nostat") == 0)
         {

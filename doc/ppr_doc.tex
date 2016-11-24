@@ -475,6 +475,8 @@ V metodě \texttt{Approximate} rozhraní \texttt{IApproximatedGlucoseLevels} imp
 
 Konkrétní podobu těchto funkcí zde nemá smysl uvádět, jelikož jsou v podstatě přepisem matematických rovnic odvozených v kapitole \ref{mat:main}, pouze s dodatkem v podobě paralelizace.
 
+Metoda kvadratického spline paralelizuje vždy na úrovni segmentů (každý worker jednu masku). Ostatní metody to v rámci paralelizace pomocí Intel TBB dělají také, ale pouze do určité hranice počtu bodů, jelikož do této hranice by režie přidělování práce napříč maskami způsobila spíše snížení efektivity. Zbytek výpočtů je prováděn na úrovni masek, tedy každý worker počítá parametry pro právě jeden úsek křivky v jedné masce v jeden čas.
+
 \section{Výpočet hodnoty v bodě}
 
 K výpočtu hodnot v bodě, a to jak po jednom, tak hromadně, slouží metoda \texttt{\justify GetLevels} rozhraní \texttt{\justify IApproximatedGlucoseLevels}.

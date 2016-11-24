@@ -176,7 +176,7 @@ void CalculateAndPrintStats(std::vector<CGlucoseLevels*> &levelsVector, std::vec
     {
         for (size_t mask = 1; mask < 0x100; mask++)
         {
-            appCurrentTestMask = (size_t)mask;
+            appCurrentTestMask = (uint8_t)mask;
             std::cout << std::endl << (int)appCurrentTestMask << ";" << (int)segment << ";";
             CalculateAndPrintStatsForMask(segment, levelsVector, approxVector);
         }
