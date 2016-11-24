@@ -7,6 +7,7 @@
 \usepackage[pdftex]{graphicx}
 \usepackage{enumitem}
 \usepackage{amsmath}
+\usepackage{url}
 
 \usepackage[pdftex]{hyperref}
 \hypersetup{colorlinks=true,
@@ -17,6 +18,14 @@
   bookmarksopen=true}
 
 \usepackage[numbers,sort&compress]{natbib}
+
+\newcommand*\justify{
+  \fontdimen2\font=0.4em
+  \fontdimen3\font=0.2em
+  \fontdimen4\font=0.1em
+  \fontdimen7\font=0.1em
+  \hyphenchar\font=`\-
+}
 
 \begin{document}
 
@@ -176,7 +185,7 @@ Byly vybrány tři různé implementace paralelizační části, za použití je
 Při implementaci bude brán ohled zejména na optimalizaci pro konkrétní kombinaci technologií, kdy bude třeba hlavně dobře volit hranici, kdy se vyplatí vybrat jinou úroveň paralelizace. V případě například GPGPU dále bude nutné minimalizovat případné větvení programu. Dále bude brán ohled na celkovou optimalitu průběhu výpočtu, kdy bude snahou minimalizovat počet výpočetních operací pro jeden průběh výpočtu pro jeden úsek křivky, zejména pak na minimalizaci operací dělení.
 
 
-\chapter{Matematické pozadí}
+\chapter{Matematické pozadí}\label{mat:main}
 
 V této kapitole je popsáno matematické pozadí metod vybraných k implementaci. O konkrétní implementaci dále pojednává kapitola \ref{algo:impl}.
 
@@ -460,17 +469,29 @@ Druhý člen poté provádí transformaci offsetu, který zakládá na předvypo
 
 Všechny algoritmy pro výpočet vybraných interpolačních křivek zakládají na metodách uvedených v předchozí podkapitole. Ty ale řeší problém přístupu k paměti a efektivitu režie kolem výpočtu, ne ale výpočet samotný.
 
-Výpočet je vždy specifický pro každou metodu a má oddělenou implementaci.
+Výpočet je vždy specifický pro každou interpolační metodu a má oddělenou implementaci. Stejně tak má v rámci metody oddělenou implementaci každý způsob parametrizace.
 
+V metodě \texttt{Approximate} rozhraní \texttt{IApproximatedGlucoseLevels} implementované v rámci každé interpolační metody se nachází větvení, které rozhodne na základě vybraného způsobu paralelizace, kterou metodu zavolá. V případě sériového výpočtu je volána pouze ve smyčce metoda \texttt{\justify CalculateParametersForMask(uint8\_t mask)}, pro použití vláken \texttt{\justify CalculateParameters\_threads()}, pro Intel TBB \texttt{\justify CalculateParameters\_TBB()} a pro OpenCL \texttt{\justify CalculateParameters\_OpenCL()}.
 
-
+Konkrétní podobu těchto funkcí zde nemá smysl uvádět, jelikož jsou v podstatě přepisem matematických rovnic odvozených v kapitole \ref{mat:main}, pouze s dodatkem v podobě paralelizace.
 
 \section{Výpočet hodnoty v bodě}
 
+K výpočtu hodnot v bodě, a to jak po jednom, tak hromadně, slouží metoda \texttt{\justify GetLevels} rozhraní \texttt{\justify IApproximatedGlucoseLevels}.
+
+Pro výpočet hodnoty v bodě je třeba jednak vybrat správný úsek křivky v závislosti na vstupních datech a aktuální masce, a jednak dopočíst správný index referenčního uzlu, který většina metod vyžaduje. K tomu má každá třída představující interpolační metodu implementovanou metodu \texttt{\justify GetIndexFor}, která v případě, že požadovaná hodnota je v intervalu interpolovaných křivek naplní potřebné indexy z pole hodnot a vrátí \texttt{S\_OK}. V případě že ne, vrací \texttt{S\_FALSE}.
+
+Index ve vstupních datech je následně převeden pomocí předvypočteného pole \texttt{\justify mask\_index\_transform\_inverse} na index správného úseku křivky.
+
+Následně je cyklicky za použití masky a soustavného posouvání indexu pomocí pole \texttt{\justify mask\_shift\_base} naplněno pole interpolovaných hodnot, a to pomocí předvypočtených parametrů křivek a obecných předpisů funkcí pro každou metodu, kam je dosazena aktuální hodnota nezávislé proměnné.
+
+Nezávislou proměnnou je v případě kvadratického a Akima spline samotné $x$, jakožto i vstupní parametr metody \texttt{\justify GetLevels}, do Hermite a centripetal Catmull-Rom spline však vstupuje parametr času. Ten je třeba zpětným řešením rovnic vyjádřit. Jelikož si u obou těchto metod můžeme být jisti, že parametr času $t$ lze vypočíst z kubické rovnice pro souřadnici $x$, stejně jako že pro každou hodnotu $x$ z intervalu $\langle 0 ; 1 \rangle$ existuje právě jedna hodnota $t$ z téhož intervalu, lze rovnici řešit klasickou metodou pro řešení kubických rovnic, ale použít pouze první reálný výsledek (bez imaginární části), který spadá do tohoto intervalu. Ten bude vždy právě jeden.
+
 \section{Výpočet statistik}
 
+Výpočet statistik je zcela odděleným procesem z pohledu aplikace. Pro každý bod vstupních dat je volána metoda \texttt{\justify GetLevels}, a to pro naplnění jedné konkrétní hodnoty, pomocí které je spočtena absolutní a relativní chyba, a následně dalším voláním i hodnota derivace, kde je zkoumána chyba absolutní. Postupně jsou takto naplněna tři dvourozměrná pole hodnot, představující absolutní a relativní chyby interpolovaných hodnot každého bodu v každé masce a absolutní chyby derivace v každé masce.
 
-
+Z těchto hodnot jsou poté vypočteny požadované statistické ukazatele - minimální, maximální, průměrná chyba, medián, 1. a 3. kvartil a standardní odchylka chyby. Tyto ukazatele jsou naformátovány do klasického CSV formátu a vypsány na standardní výstup. Na závěr je vypsána informace o tom, zdali je metoda interpolace spojitě diferencovatelná, což zahrnuje i informaci o tom, zda má spojitou derivaci. V případě všech implementovaných metod je tato vlastnost splněna.
 
 \chapter{Uživatelská dokumentace}
 
