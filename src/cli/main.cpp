@@ -32,7 +32,7 @@ LoaderType appLoaderType;
 uint8_t appCurrentTestMask;
 
 // should we create testing SVG output? (1 = true, anything else = false)
-#define DEBUG_SVG_PRINT 0
+#define DEBUG_SVG_PRINT 1
 
 // reduces all times by minimum of all times - causes less precision loss
 static floattype reduceLevels(CGlucoseLevels* lvls)
@@ -295,6 +295,8 @@ int main(int argc, char** argv)
     // we use centripetal catmull-rom parametrization
     if (appApproxMethod == apxmCatmullRomSpline)
         params.catmull.tensionParam = catmullRomParam_Centripetal;
+    else if (appApproxMethod == apxmCubicHermiteSpline)
+        params.hermite.tensionParam = 0.5;
 
     std::vector<CCommonApprox*> approxVect(vecSize);
     std::vector<floattype> reduceAmount(vecSize);
@@ -325,7 +327,7 @@ int main(int argc, char** argv)
 #if DEBUG_SVG_PRINT == 1
         if (i == 0)
         {
-            appCurrentTestMask = 154;
+            appCurrentTestMask = 255;
             // some testing values for output
             size_t levcount = 768;
             size_t filled;

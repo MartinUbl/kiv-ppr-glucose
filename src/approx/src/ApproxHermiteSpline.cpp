@@ -39,6 +39,7 @@ void ApproxHermiteSpline::CalculateParametersForMask(const uint32_t mask)
     j = 0;
 
     size_t pos0, pos1, pos2, pos3;
+    floattype t1, t2, p1, p2;
 
     for (i = 0; i < maskedCount - 2; i++, j++)
     {
@@ -58,17 +59,29 @@ void ApproxHermiteSpline::CalculateParametersForMask(const uint32_t mask)
 
         floattype* const xC = &xCoefs[mask][i + 1][0];
 
-        xC[0] = values[pos1].datetime;
-        xC[1] = -values[pos0].datetime/2.0 + values[pos2].datetime/2.0;
-        xC[2] = values[pos0].datetime - (5.0*values[pos1].datetime)/2.0 + 2.0*values[pos2].datetime - values[pos3].datetime / 2.0;
-        xC[3] = -values[pos0].datetime/2.0 + (3.0*values[pos1].datetime)/2.0 - (3.0*values[pos2].datetime)/2.0 + values[pos3].datetime/2.0;
+        p1 = values[pos1].datetime;
+        p2 = values[pos2].datetime;
+        // tangent estimation using neighbors
+        t1 = (1.0 - tensionParameter) * (values[pos2].datetime - values[pos0].datetime);
+        t2 = (1.0 - tensionParameter) * (values[pos3].datetime - values[pos1].datetime);
+
+        xC[3] = 2 * p1 - 2 * p2 + t1 + t2;
+        xC[2] = -3 * p1 + 3 * p2 - 2 * t1 - t2;
+        xC[1] = t1;
+        xC[0] = p1;
 
         floattype* const yC = &yCoefs[mask][i + 1][0];
 
-        yC[0] = values[pos1].level;
-        yC[1] = -values[pos0].level / 2.0 + values[pos2].level / 2.0;
-        yC[2] = values[pos0].level - (5.0*values[pos1].level) / 2.0 + 2.0*values[pos2].level - values[pos3].level / 2.0;
-        yC[3] = -values[pos0].level / 2.0 + (3.0*values[pos1].level) / 2.0 - (3.0*values[pos2].level) / 2.0 + values[pos3].level / 2.0;
+        p1 = values[pos1].level;
+        p2 = values[pos2].level;
+        // tangent estimation using neighbors
+        t1 = (1.0 - tensionParameter) * (values[pos2].level - values[pos0].level);
+        t2 = (1.0 - tensionParameter) * (values[pos3].level - values[pos1].level);
+
+        yC[3] = 2*p1 - 2*p2 + t1 + t2;
+        yC[2] = -3*p1 + 3*p2 - 2*t1 - t2;
+        yC[1] = t1;
+        yC[0] = p1;
     }
 }
 
@@ -149,6 +162,7 @@ void ApproxHermiteSpline::CalculateParameters_threads()
             uint8_t mask;
             int32_t myWork;
             size_t pos0, pos1, pos2, pos3;
+            floattype t1, t2, p1, p2;
 
             while (thrWork.getWork(mask, myWork))
             {
@@ -163,17 +177,29 @@ void ApproxHermiteSpline::CalculateParameters_threads()
 
                 floattype* const xC = &xCoefs[mask][myWork + 1][0];
 
-                xC[0] = values[pos1].datetime;
-                xC[1] = -values[pos0].datetime / 2.0 + values[pos2].datetime / 2.0;
-                xC[2] = values[pos0].datetime - (5.0*values[pos1].datetime) / 2.0 + 2.0*values[pos2].datetime - values[pos3].datetime / 2.0;
-                xC[3] = -values[pos0].datetime / 2.0 + (3.0*values[pos1].datetime) / 2.0 - (3.0*values[pos2].datetime) / 2.0 + values[pos3].datetime / 2.0;
+                p1 = values[pos1].datetime;
+                p2 = values[pos2].datetime;
+                // tangent estimation using neighbors
+                t1 = (1.0 - tensionParameter) * (values[pos2].datetime - values[pos0].datetime);
+                t2 = (1.0 - tensionParameter) * (values[pos3].datetime - values[pos1].datetime);
 
-                floattype* const yC = &yCoefs[mask][myWork + 1][0];
+                xC[3] = 2 * p1 - 2 * p2 + t1 + t2;
+                xC[2] = -3 * p1 + 3 * p2 - 2 * t1 - t2;
+                xC[1] = t1;
+                xC[0] = p1;
 
-                yC[0] = values[pos1].level;
-                yC[1] = -values[pos0].level / 2.0 + values[pos2].level / 2.0;
-                yC[2] = values[pos0].level - (5.0*values[pos1].level) / 2.0 + 2.0*values[pos2].level - values[pos3].level / 2.0;
-                yC[3] = -values[pos0].level / 2.0 + (3.0*values[pos1].level) / 2.0 - (3.0*values[pos2].level) / 2.0 + values[pos3].level / 2.0;
+                floattype* const yC = &yCoefs[mask][i + 1][0];
+
+                p1 = values[pos1].level;
+                p2 = values[pos2].level;
+                // tangent estimation using neighbors
+                t1 = (1.0 - tensionParameter) * (values[pos2].level - values[pos0].level);
+                t2 = (1.0 - tensionParameter) * (values[pos3].level - values[pos1].level);
+
+                yC[3] = 2 * p1 - 2 * p2 + t1 + t2;
+                yC[2] = -3 * p1 + 3 * p2 - 2 * t1 - t2;
+                yC[1] = t1;
+                yC[0] = p1;
             }
         });
     }
@@ -218,6 +244,7 @@ void ApproxHermiteSpline::CalculateParameters_TBB()
         size_t mask;
         int i;
         size_t pos0, pos1, pos2, pos3;
+        floattype t1, t2, p1, p2;
 
         const int workbegin = idx.cols().begin();
 
@@ -240,17 +267,29 @@ void ApproxHermiteSpline::CalculateParameters_TBB()
 
                 floattype* const xC = &xCoefs[mask][i + 1][0];
 
-                xC[0] = values[pos1].datetime;
-                xC[1] = -values[pos0].datetime / 2.0 + values[pos2].datetime / 2.0;
-                xC[2] = values[pos0].datetime - (5.0*values[pos1].datetime) / 2.0 + 2.0*values[pos2].datetime - values[pos3].datetime / 2.0;
-                xC[3] = -values[pos0].datetime / 2.0 + (3.0*values[pos1].datetime) / 2.0 - (3.0*values[pos2].datetime) / 2.0 + values[pos3].datetime / 2.0;
+                p1 = values[pos1].datetime;
+                p2 = values[pos2].datetime;
+                // tangent estimation using neighbors
+                t1 = (1.0 - tensionParameter) * (values[pos2].datetime - values[pos0].datetime);
+                t2 = (1.0 - tensionParameter) * (values[pos3].datetime - values[pos1].datetime);
+
+                xC[3] = 2 * p1 - 2 * p2 + t1 + t2;
+                xC[2] = -3 * p1 + 3 * p2 - 2 * t1 - t2;
+                xC[1] = t1;
+                xC[0] = p1;
 
                 floattype* const yC = &yCoefs[mask][i + 1][0];
 
-                yC[0] = values[pos1].level;
-                yC[1] = -values[pos0].level / 2.0 + values[pos2].level / 2.0;
-                yC[2] = values[pos0].level - (5.0*values[pos1].level) / 2.0 + 2.0*values[pos2].level - values[pos3].level / 2.0;
-                yC[3] = -values[pos0].level / 2.0 + (3.0*values[pos1].level) / 2.0 - (3.0*values[pos2].level) / 2.0 + values[pos3].level / 2.0;
+                p1 = values[pos1].level;
+                p2 = values[pos2].level;
+                // tangent estimation using neighbors
+                t1 = (1.0 - tensionParameter) * (values[pos2].level - values[pos0].level);
+                t2 = (1.0 - tensionParameter) * (values[pos3].level - values[pos1].level);
+
+                yC[3] = 2 * p1 - 2 * p2 + t1 + t2;
+                yC[2] = -3 * p1 + 3 * p2 - 2 * t1 - t2;
+                yC[1] = t1;
+                yC[0] = p1;
             }
         }
     });
@@ -279,6 +318,8 @@ void ApproxHermiteSpline::CalculateParameters_OpenCL()
 
     void* vals_cp;
     int vals_size;
+    double tensionParamD = (double)tensionParameter;
+    float tensionParamF = (float)tensionParameter;
 
     // we have to copy values to intermediate array since we are not sure the GPU supports double precision
     // also we cannot "copy" double to float at binary level due to different sizes and schemas
@@ -332,6 +373,10 @@ void ApproxHermiteSpline::CalculateParameters_OpenCL()
     ret = clSetKernelArg(kernel, 3, sizeof(int), &valueCount);
     ret = clSetKernelArg(kernel, 4, sizeof(cl_mem), (void *)&xcoefs_m);
     ret = clSetKernelArg(kernel, 5, sizeof(cl_mem), (void *)&ycoefs_m);
+    if (clSupportsDouble())
+        ret = clSetKernelArg(kernel, 6, sizeof(double), (void*)&tensionParamD);
+    else
+        ret = clSetKernelArg(kernel, 6, sizeof(float), (void*)&tensionParamF);
 
     // work!
     size_t local_item_size[] = { 1, 16 };
@@ -405,6 +450,8 @@ void ApproxHermiteSpline::CalculateParameters_OpenCL()
 HRESULT IfaceCalling ApproxHermiteSpline::Approximate(TApproximationParams *params)
 {
     uint32_t mask;
+
+    tensionParameter = params ? params->hermite.tensionParam : 0.5; // some dummy parameter
 
     // cache count and values pointer
     mEnumeratedLevels->GetLevelsCount(&valueCount);

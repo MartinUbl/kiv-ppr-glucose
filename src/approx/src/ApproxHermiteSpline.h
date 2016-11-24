@@ -51,6 +51,9 @@ class ApproxHermiteSpline : public CCommonApprox
 
         // cached value pointer
         TGlucoseLevel* values;
+
+        // hermite spline tangent estimation tension parameter
+        floattype tensionParameter;
 };
 
 #pragma warning( pop )

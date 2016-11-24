@@ -6,6 +6,7 @@
 
 \usepackage[pdftex]{graphicx}
 \usepackage{enumitem}
+\usepackage{amsmath}
 
 \usepackage[pdftex]{hyperref}
 \hypersetup{colorlinks=true,
@@ -238,7 +239,7 @@ Akima spline je speciální formou kubického spline. Stejně jako kvadratický 
 
 Obecnou kubickou funkci lze zapsat rovnicí
 
-\begin{equation}
+\begin{equation}\label{eq:cubic}
 f(y)=ax^3+bx^2+cx+d,
 \end{equation}
 
@@ -293,21 +294,98 @@ Hlavní výhodou metody Akima spline je mimo to, že přejímá výhody interpol
 
 Nevýhodou je mírně větší složitost výpočtu parametrů, tedy i mírně větší výpočetní náročnost. Stále ale jde o poměrně jednoduchou metodu s velmi příznivými výsledky.
 
-\section{Centripetal Catmull-Rom spline}
+\section{Hermite spline}
 
-Obecně Catmull-Rom spline je taková metoda interpolace, která nepředpokládá jeden rozměr při výpočtu. Použití této metody je často v rovinných nebo prostorových interpolacích, například pro věrné napodobení cest mezi body při generování cesty, typicky v počítačových hrách. Pro obyčejnou funkční aproximaci ji použít lze, existují však dodatečné výpočty, které je nutné provést před samotným získáním hodnot v mezilehlých bodech.
+Jedná se o další variantu kubického spline, obecný předpis je proto stejný jako v rovnici \ref{eq:cubic}. Stejně jako u ostatních polynomiálních spline jde o spojitě diferencovatelnou křivku.
 
-Catmull-Rom spline vyžaduje pro interpolaci jednoho segmentu 4 body, které jsou použity pro výpočet parametrů funkcí pro generování křivky mezi body prostředními. Omezíme-li se na interpolaci funkcí, pro jednoduchou interpolaci je třeba, aby vstupní body měly uniformní rozestup, což obecně v naměřených datech nemusí být dodrženo. Proto je třeba mít funkce dvě, jednu pro každý rozměr. Obě tyto funkce jsou funkce nezávislé proměnné \uv{času}, který je zde představován poměrovou částí křivky od jejího začátku. Z tohoto výroku plyne, že nelze přímo použít obecně nezávislou proměnnou $x$, tedy v konkrétním případě čas měření.
-
-Do interpolačního procesu lze zanést parametrizaci v podobě stanovení parametru zvaného \uv{uzlový parametr} značeným $\alpha$ (často převáděný na parametr pnutí $\tau$), kterým lze snadno manipulovat s vlastnostmi křivky. Základní je parametrizace uniformní ($\alpha = 0, \tau = 0.5$), dále je pak často využívaná chordálová ($\alpha = 1, \tau = 0$), ovšem pro potřeby této práce je nejzajímavější parametrizace \emph{centripetal} ($\alpha = 0.5, \tau = 0.25$).
-
-Centripetal parametrizace odstraňuje z uniformní křivky protínání sebe sama a narozdíl od chordálové se těsněji přibližuje vstupním datům a tak vytváří křivku, která je věrnější. Také lze chordálovou a centripetal Catmull-Rom v případě interpolace funkce hodnoty závislé na čase převést na funkci. Uniformní parametrizace by mohla porušit vlastnosti funkcí i v případě bodů které v seřazené posloupnosti mají pouze rostoucí hodnotu $x$. Centripetal parametrizace je pak první, která vlastnosti funkce neporušuje. Chordálová pak tvoří výrazné oblouky kolem interpolovaných bodů, které mohou v případě funkční interpolace být nežádoucí.
-
-Jako první je třeba vypočítat vážené vzdálenosti bodů pomocí parametru $\tau$:
+Metoda je postavená na lineární kombinaci bázových funkcí, kterými jsou:
 
 \begin{equation}
 \begin{array}{rcl}
- dt_{i}   & = & (x_{i+1} - x_i)^2 + (y_{i+1} - y_i)^2 \\
+ h_{00} & = & 2t^3 - 3t^2 + 1 \\
+ h_{01} & = & -2t^3 + 3t^2 \\
+ h_{10} & = & t^3 - 2t^2 + t \\
+ h_{11} & = & t^3 - t^2 \\
+\end{array}
+\end{equation}
+
+na intervalu $\langle0;1\rangle$.
+
+Funkce $h_{00}$ má v čase $t = 0$ hodnotu 1, funkce $h_{01}$ hodnotu 0, v čase $t = 1$ je tomu přesně naopak. Tato vlastnost se dá využít pro aplikování principů interpolace, a sice že křivka prochází krajními body. Funkce $h_{00}$ tedy bude násobit souřadnice levého bodu, funkce $h_{01}$ pravého. Zbývající funkce mají v hraničních bodech intervalu hodnotu 0, proto nemohou ovlivnit hodnotu výsledné lineární kombinace. Používají se pro násobení odhadovaných derivací v krajních bodech.
+
+Pro zjednodušení výpočtu a možnosti převést tento výpočet do programového kódu je vhodné provést formální zápis pomocí matic a vektorů. Bázová matice $B$ složená z bázových funkcí vypadá takto:
+
+\begin{center}
+\begin{math}
+B = 
+ \begin{pmatrix}
+  2 & -2 & 1 & 1 \\
+  -3 & 3 & -2 & -1 \\
+  0 & 0 & 1 & 0 \\
+  1 & 0 & 0 & 0
+ \end{pmatrix}
+\end{math}
+\end{center}
+
+Pro násobení funkcí krajními body a derivacemi lze stanovit vektor těchto hodnot:
+
+\begin{center}
+\begin{math}
+S = 
+ \begin{pmatrix}
+  P_i \\
+  P_{i+1} \\
+  T_i \\
+  T_{i+1}
+ \end{pmatrix},
+\end{math}
+\end{center}
+
+kde $P_i$ je hodnota jedné ze souřadnic bodu levého, $P_{i+1}$ stejné ze souřadnic bodu pravého, $T_i$ je odhad derivace v levém bodě a $T_{i+1}$ v pravém.
+
+Vektor výsledných parametrů pak lze zapsat jako produkt násobení vektoru:
+
+\begin{equation}
+Q = B \cdot S
+\end{equation}
+
+Hodnotu funkce v daném čase $t$ pak lze vyjádřit jako
+
+\begin{equation}
+Q = \begin{bmatrix}
+  t^3 & t^2 & t & 1
+ \end{bmatrix} \cdot B \cdot S
+\end{equation}
+
+Metod odhadu derivací v bodě existuje několik, ze standardně používaných lze uvést hlavně kardinální spline variantu, kde hodnota derivace v každém bodě je vyjádřena rovnicí
+
+\begin{equation}
+T_k = (1 - c)\frac{P_{k+1} - P_{k-1}}{t_{k+1} - t_{k-1}},
+\end{equation}
+
+kde parametr $c$ vyjadřuje pnutí v každém z krajních bodů intervalu. Tento parametr by měl nabývat hodnot z intervalu $\langle0 ; 1 \rangle$, není to však podmínkou.
+
+Pro $c = 0.5$ jde o základní Catmull-Rom spline.
+
+\subsection*{Výhody a nevýhody}
+
+Hermite spline spočívají zejména v interpolaci ve více rozměrech, což není v našem případě příliš využito. Dále neobsahuje zákmity jako spline kvadratický a je možné volně parametrizovat pnutí v každém bodě.
+
+Výpočet je ale mírně složitější zejména proto, že je potřeba provádět výpočet ve dvou rozměrech odděleně, a to jak při stanovení koeficientů, tak posléze při získání hodnoty v konkrétním bodě. Další nevýhodou je absence úseku prvního a posledního úseku křivky, což je dáno charakterem interpolační metody, kdy pro výpočet parametrů křivky v jednom úseku jsou třeba vlastnosti úseku předchozího a následujícího.
+
+\section{Centripetal Catmull-Rom spline}
+
+Catmull-Rom spline interpolační metody jsou podmnožinou Hermite spline metod. Použití metody Catmull-Rom je často v rovinných nebo prostorových interpolacích, například pro věrné napodobení cest mezi body při generování cesty, typicky v počítačových hrách. Pro obyčejnou funkční aproximaci ji použít však lze.
+
+Catmull-Rom spline vyžaduje pro interpolaci jednoho segmentu 4 body, které jsou použity pro výpočet parametrů funkcí pro generování křivky mezi body prostředními. Do interpolačního procesu lze zanést parametrizaci v podobě stanovení parametru zvaného \uv{uzlový parametr} značeným $\alpha$ (často převáděný na parametr pnutí $\tau$), kterým lze snadno manipulovat s vlastnostmi křivky. Základní je parametrizace uniformní ($\alpha = 0, \tau = 0.5$), dále je pak často využívaná chordálová ($\alpha = 1, \tau = 0$), ovšem pro potřeby této práce je nejzajímavější parametrizace \emph{centripetal} ($\alpha = 0.5, \tau = 0.25$).
+
+Centripetal parametrizace odstraňuje z uniformní křivky protínání sebe sama a narozdíl od chordálové se těsněji přibližuje vstupním datům a tak vytváří křivku, která je věrnější. Také lze chordálovou a centripetal Catmull-Rom v případě interpolace funkce hodnoty závislé na čase převést na funkci. Uniformní parametrizace by mohla porušit vlastnosti funkcí i v případě bodů které v seřazené posloupnosti mají pouze rostoucí hodnotu $x$. Centripetal parametrizace je pak první, která vlastnosti funkce neporušuje. Chordálová pak tvoří výrazné oblouky kolem interpolovaných bodů, které mohou v případě funkční interpolace být nežádoucí.
+
+Nejdříve je třeba vypočíst vážené vzdálenosti bodů pomocí parametru $\tau$:
+
+\begin{equation}
+\begin{array}{rcl}
+ dt_{i} & = & ((x_{i+1} - x_i)^2 + (y_{i+1} - y_i)^2)^\tau \\
 \end{array}
 \end{equation}
 
@@ -315,34 +393,17 @@ a následně vypočítat časovou parametrizaci pro finální stanovení koefici
 
 \begin{equation}
 \begin{array}{rcl}
- t_i & = & dt_{i} ( \frac{C_{i+1} - C_i}{dt_{i}} - \frac{C_{i+2} - C_i}{dt_{i} + dt_{i+1}} + \frac{C_{i+2} - C_{i+1}}{dt_{i+1}} ), \\
+ T_i & = & dt_{i} ( \frac{P_{i+1} - P_i}{dt_{i}} - \frac{P_{i+2} - P_i}{dt_{i} + dt_{i+1}} + \frac{P_{i+2} - P_{i+1}}{dt_{i+1}} ), \\
 \end{array}
 \end{equation}
 
-kde $C$ je jedna ze souřadnic $x$ nebo $y$. Finální rovnice pro stanovení koeficientů pro \emph{každou} souřadnici vypadají takto:
-
-\begin{equation}
-\begin{array}{rcl}
- d_i & = & C_{i+1} \\
- c_i & = & t_{i} \\
- b_i & = & -3 C_{i+1} + 3 C_{i+2} - 2 t_i t_{i+1} \\
- a_i & = & 2 C_{i+1} - 2 C_{i+2} + t_i + t_{i+1} \\
-\end{array}
-\end{equation}
+kde $P$ je jedna ze souřadnic $x$ nebo $y$. Výsledné hodnoty $T_i$ a $T_{i+1}$ společně se vstupními body $P_i$ a $P_{i+1}$ lze následně dosadit do vztahů Hermite spline.
 
 \subsection*{Výhody a nevýhody}
 
-Výhody Catmull-Rom spline spočívají zejména v interpolaci ve více rozměrech, což není v našem případě příliš využito. Pro naše účely je výhodná centripetal parametrizace, protože se přibližuje trochu více průběhům, které by reálně v lidském těle mohly vzniknout.
+Catmull-Rom spline v parametrizaci centripetal v podstatě sdílí výhody a nevýhody s Hermite spline.
 
-Výpočet je ale mírně složitější zejména proto, že je potřeba provádět výpočet ve dvou rozměrech odděleně.
-
-\section{Hermite spline}
-
-...
-
-\subsection*{Výhody a nevýhody}
-
-...
+Jediným větším rozdílem oproti základnímu Hermite spline je složitější výpočet odhadu derivace ve vstupních bodech, který vede ve větší \uv{volnost} v každém z nich. To opět může být pro některé aplikace žádoucí.
 
 
 
