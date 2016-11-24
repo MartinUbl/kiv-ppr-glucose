@@ -1,4 +1,7 @@
 *
+!img/
+!img/*
+img/Thumbs.db
 !*.bst
 !*.cls
 !*.tex

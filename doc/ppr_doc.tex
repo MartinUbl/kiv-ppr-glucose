@@ -189,7 +189,7 @@ Pro každý úsek platí, že lze interpolující křivku zapsat jako
 f(y)=ax^2+bx+c
 \end{equation}
 
-Zároveň ale platí, že derivace v uzlech je stejná zleva i zprava. Mějme obecný předpis derivace kvadratické funkce
+Zároveň ale platí, že derivace v uzlech je stejná v interpolující funkci zleva i zprava. Mějme obecný předpis derivace kvadratické funkce
 
 \begin{equation}
 f(y)=2ax+b,
@@ -197,7 +197,7 @@ f(y)=2ax+b,
 
 pak musí platit, že
 \begin{equation}\label{eq:qspline}
-2a_{i}x+b_{i}=2a_{i+1}x+b_{i+1}
+2a_{i-1}x+b_{i-1}=2a_{i}x+b_{i}
 \end{equation}
 
 Rovnice \ref{eq:qspline} je jednou z fundamenálních rovnic kvadratického spline. Zbylé rovnice potřebné k implementaci vycházejí z obecných vlastností interpolačních metod, konkrétně té vlastnosti, že křivka prochází uzly. Z těchto předpokladů lze sestavit finální soustavu rovnic potřebných k implementaci:
@@ -206,10 +206,143 @@ Rovnice \ref{eq:qspline} je jednou z fundamenálních rovnic kvadratického spli
 \begin{array}{rcl}
  y_{i} & = & a_{i}x_{i}^2 + b_{i}x_{i} + c_{i} \\
  y_{i+1} & = & a_{i}x_{i+1}^2 + b_{i}x_{i+1} + c_{i} \\
- 2a_{i}x+b_{i} & = & 2a_{i+1}x+b_{i+1} \\
+ 2a_{i-1}x+b_{i-1} & = & 2a_{i}x+b_{i} \\
 \end{array}
 \end{equation}
 
+Jelikož ale ve všech bodech vyžadujeme hodnotu koeficientů předchozích úseků, nutně existuje úsek, pro který nelze nalézt úsek předchozí. Pro nultý úsek je proto nutné odhadnout hodnotu koeficientů tak, aby neovlivnily negativně další průběh funkce, a aby stále výsledná křivka definovaná těmito koeficienty procházela uzly. Jedinou takovou křivkou je přímka, respektive úsečka. Ta nemá negativní dopad na derivace v následujících bodech a lze najít snadno takové koeficienty, díky kterým protne oba interpolované uzly v prvním úseku. Pro nultý úsek tedy volíme následující koeficienty:
+
+\begin{equation}
+\begin{array}{rcl}
+ a_{0} & = & 0 \\
+ b_{0} & = & \frac{y_1 - y_0}{x_1 - x_0} \\
+ c_{0} & = & y_0 - b_0 x_0 \\
+\end{array}
+\end{equation}
+
+\subsection*{Výhody a nevýhody}
+
+Výhodou je bezesporu jednoduchost. Bohužel pro praktické aplikace převládají hlavně zápory. Kvadratický spline je velmi nestabilní, a při určitých kombinacích alternujících hodnot se funkce \uv{rozkmitá}, tedy se zvyšuje koeficient kvadratického členu a nutně i hodnota derivace v bodech. To lze vidět na obrázku \ref{img:rozkmit}, kde jsou červeně naznačeny vstupní body a modrá čára představuje interpolaci v podobě kvadratického spline.
+
+Právě kvůli rozkmitu není tato metoda vhodná pro interpolaci v rámci systému těsně omezeného shora a zdola. V tomto kontextu jde o hladinu glukózy, která je shora omezena hladinou hyperglykémie a zdola naopak hladinou hypoglykémie. Kvadratický spline ale velmi často tyto hladiny přeroste, aniž by tomu naměřené hodnoty nasvědčovaly.
+
+\begin{figure}[ht]
+	\centering
+	\includegraphics[width=0.8\textwidth]{img/rozkmit.png}\label{img:rozkmit}
+	\caption{Nežádoucí rozkmit kvadratického spline}
+\end{figure}
+
+\section{Akima spline}
+
+Akima spline je speciální formou kubického spline. Stejně jako kvadratický spline tvoří i Akima spline spojitě diferencovatelnou křivku, což opět zaručuje zachování derivací zleva a zprava v každém bodě.
+
+Obecnou kubickou funkci lze zapsat rovnicí
+
+\begin{equation}
+f(y)=ax^3+bx^2+cx+d,
+\end{equation}
+
+pro Akima spline byla však tato definice upravena jako
+
+\begin{equation}
+f(y)=a(x-x_i)^3+b(x-x_i)^2+c(x-x_i)+d
+\end{equation}
+
+a to čistě jen proto, aby se zvýšila odolnost proti chybám vzniklým reprezentací čísel s plovoucí desetinnou čárkou. Ve vzorci totiž $x_i$ patří referenčnímu uzlu nalevo, takže dochází k redukci hodnot. S tím musí ovšem počítat i výpočet parametrů, jelikož křivka musí být posunuta tak, aby žádané hodnoty byly v intervalu $\langle0 ; x_{i+1} - x_i \rangle$
+
+Celá metoda zakládá na odhadu sklonu křivek v závislosti na vstupních datech. Tyto elementární odhady jsou stanoveny pomocí sklonů přímek které prochází po sobě jdoucími body:
+
+\begin{equation}
+m_{i} = f'(x_{i})=\frac{y_{i+1} - y_i}{x_{i+1} - x_i}
+\end{equation}
+
+Odhady sklonů jsou posunuty o 2 hodnoty doleva, aby bylo možné symetricky interpolovat křivkami v každém bodě. Mimo to jsou první dvě váhy s indexy $-1$ a $-2$ a poslední dvě váhy za rozsahem hodnot $n$ a $n+1$ odhadnuty:
+
+\begin{equation}
+\begin{array}{rcl}
+    m_{-1} & = & 2 m_0 - m_1 \\
+    m_{-2} & = & 2 m_{-1} - m_0 \\
+    m_{n}  & = & 2 m_{n-1} - m_{n-2} \\
+    m_{n+1} & = & 2 m_{n} - m_{n-1} \\
+\end{array}
+\end{equation}
+
+Dále jsou stanoveny vážicí koeficienty pro každý úsek jako:
+
+\begin{equation}
+\begin{array}{rcl}
+ w_{i+1} & = & |m_{i+2} - m_{i+1}| \\
+ w_{i-1} & = & |m_{i} - m_{i-1}| \\
+\end{array}
+\end{equation}
+
+Finální rovnice pro koeficienty Akima spline křivky:
+
+\begin{equation}
+\begin{array}{rcl}
+ d_i & = & y_i \\
+ c_i & = & \frac{(w_{i+1} * m_i + w_{i-1} * m_{i+1})}{w_{i+1} + w_{i-1}} \\
+ b_i & = & \frac{3 m_i - 2 a_i - c_{i+1}}{x_{i+1} - x_i} \\
+ a_i & = & \frac{c_i + c_{i+1} - 2 * m_i}{(x_{i+1} - x_i)^2}\\
+\end{array}
+\end{equation}
+
+\subsection*{Výhody a nevýhody}
+
+Hlavní výhodou metody Akima spline je mimo to, že přejímá výhody interpolace a spline křivek obecně hlavně to, že odstraňuje nedostatek který vykazuje kvadratický spline v podobě nepřirozeného rozkmitu. Akima spline je také konstruován tak, aby co nejvěrněji napodoboval manuálně interpolovanou křivku lidmi.
+
+Nevýhodou je mírně větší složitost výpočtu parametrů, tedy i mírně větší výpočetní náročnost. Stále ale jde o poměrně jednoduchou metodu s velmi příznivými výsledky.
+
+\section{Centripetal Catmull-Rom spline}
+
+Obecně Catmull-Rom spline je taková metoda interpolace, která nepředpokládá jeden rozměr při výpočtu. Použití této metody je často v rovinných nebo prostorových interpolacích, například pro věrné napodobení cest mezi body při generování cesty, typicky v počítačových hrách. Pro obyčejnou funkční aproximaci ji použít lze, existují však dodatečné výpočty, které je nutné provést před samotným získáním hodnot v mezilehlých bodech.
+
+Catmull-Rom spline vyžaduje pro interpolaci jednoho segmentu 4 body, které jsou použity pro výpočet parametrů funkcí pro generování křivky mezi body prostředními. Omezíme-li se na interpolaci funkcí, pro jednoduchou interpolaci je třeba, aby vstupní body měly uniformní rozestup, což obecně v naměřených datech nemusí být dodrženo. Proto je třeba mít funkce dvě, jednu pro každý rozměr. Obě tyto funkce jsou funkce nezávislé proměnné \uv{času}, který je zde představován poměrovou částí křivky od jejího začátku. Z tohoto výroku plyne, že nelze přímo použít obecně nezávislou proměnnou $x$, tedy v konkrétním případě čas měření.
+
+Do interpolačního procesu lze zanést parametrizaci v podobě stanovení parametru zvaného \uv{uzlový parametr} značeným $\alpha$ (často převáděný na parametr pnutí $\tau$), kterým lze snadno manipulovat s vlastnostmi křivky. Základní je parametrizace uniformní ($\alpha = 0, \tau = 0.5$), dále je pak často využívaná chordálová ($\alpha = 1, \tau = 0$), ovšem pro potřeby této práce je nejzajímavější parametrizace \emph{centripetal} ($\alpha = 0.5, \tau = 0.25$).
+
+Centripetal parametrizace odstraňuje z uniformní křivky protínání sebe sama a narozdíl od chordálové se těsněji přibližuje vstupním datům a tak vytváří křivku, která je věrnější. Také lze chordálovou a centripetal Catmull-Rom v případě interpolace funkce hodnoty závislé na čase převést na funkci. Uniformní parametrizace by mohla porušit vlastnosti funkcí i v případě bodů které v seřazené posloupnosti mají pouze rostoucí hodnotu $x$. Centripetal parametrizace je pak první, která vlastnosti funkce neporušuje. Chordálová pak tvoří výrazné oblouky kolem interpolovaných bodů, které mohou v případě funkční interpolace být nežádoucí.
+
+Jako první je třeba vypočítat vážené vzdálenosti bodů pomocí parametru $\tau$:
+
+\begin{equation}
+\begin{array}{rcl}
+ dt_{i}   & = & (x_{i+1} - x_i)^2 + (y_{i+1} - y_i)^2 \\
+\end{array}
+\end{equation}
+
+a následně vypočítat časovou parametrizaci pro finální stanovení koeficientů pro křivku v daném segmentu:
+
+\begin{equation}
+\begin{array}{rcl}
+ t_i & = & dt_{i} ( \frac{C_{i+1} - C_i}{dt_{i}} - \frac{C_{i+2} - C_i}{dt_{i} + dt_{i+1}} + \frac{C_{i+2} - C_{i+1}}{dt_{i+1}} ), \\
+\end{array}
+\end{equation}
+
+kde $C$ je jedna ze souřadnic $x$ nebo $y$. Finální rovnice pro stanovení koeficientů pro \emph{každou} souřadnici vypadají takto:
+
+\begin{equation}
+\begin{array}{rcl}
+ d_i & = & C_{i+1} \\
+ c_i & = & t_{i} \\
+ b_i & = & -3 C_{i+1} + 3 C_{i+2} - 2 t_i t_{i+1} \\
+ a_i & = & 2 C_{i+1} - 2 C_{i+2} + t_i + t_{i+1} \\
+\end{array}
+\end{equation}
+
+\subsection*{Výhody a nevýhody}
+
+Výhody Catmull-Rom spline spočívají zejména v interpolaci ve více rozměrech, což není v našem případě příliš využito. Pro naše účely je výhodná centripetal parametrizace, protože se přibližuje trochu více průběhům, které by reálně v lidském těle mohly vzniknout.
+
+Výpočet je ale mírně složitější zejména proto, že je potřeba provádět výpočet ve dvou rozměrech odděleně.
+
+\section{Hermite spline}
+
+...
+
+\subsection*{Výhody a nevýhody}
+
+...
 
 
 
