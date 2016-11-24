@@ -18,6 +18,13 @@ HRESULT SQLiteLoader::InitLoader(LoaderParams params)
     if (params.type != LoaderType::SQLiteLoaderType)
         return S_FALSE;
 
+    // test if file exists
+    FILE* test;
+    fopen_s(&test, params.params.SQLiteLoaderParams.filename, "r");
+    if (!test)
+        return S_FALSE;
+    fclose(test);
+
     res = sqlite3_open(params.params.SQLiteLoaderParams.filename, &db);
     if (res != 0)
     {
