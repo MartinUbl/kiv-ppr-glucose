@@ -10,6 +10,7 @@
 \usepackage{url}
 \usepackage{listings}
 \usepackage{caption}
+\usepackage[usenames,dvipsnames,svgnames,table]{xcolor}
 
 \usepackage[pdftex]{hyperref}
 \hypersetup{colorlinks=true,
@@ -191,7 +192,7 @@ Při implementaci bude brán ohled zejména na optimalizaci pro konkrétní komb
 
 V této kapitole je popsáno matematické pozadí metod vybraných k implementaci. O konkrétní implementaci dále pojednává kapitola \ref{algo:impl}.
 
-\section{Kvadratický spline}
+\section{Kvadratický spline}\label{mat:quad}
 
 Kvadratický spline tvoří při interpolaci křivku, která je spojitá a spojitě diferencovatelná. Stejně jako každý jiný spline zachovává hodnoty derivací v uzlu tak, aby byly stejné pro levý i pravý úsek, což zaručuje spojitou diferencovatelnost.
 
@@ -591,50 +592,188 @@ V této kapitole jsou zhodnoceny dosažené výsledky z technického hlediska, p
 
 \section{Zhodnocení interpolačních metod}
 
-...
+Implementované metody vykazovaly poměrně podobné vlastnosti při interpolaci naměřených dat, kromě kvadratického spline, který, jak je uvedené v kapitole \ref{mat:quad}, vykazoval nepřirozený rozkmit, tedy je pro účely této práce nepoužitelný.
+
+Porovnání stejných segmentů interpolovaných všemi metodami lze vidět na obrázcích \ref{obr:quadfinal} (kvadratický spline), \ref{obr:akimafinal} (Akima spline), \ref{obr:hermitefinal} (Hermite spline) a \ref{obr:catmullromfinal} (centripetal Catmull-Rom spline).
+
+Kvadratický spline je ze zřejmého důvodu rozkmitu nepoužitelný. Akima spline vykazuje velmi stabilní přechod mezi body v řadě, které mají konstantní sklon. To ovšem nemusí být žádoucí vzhledem k tomu, že je důsledkem toho poměrně ostrý přechod i symetricky na druhé straně, když následující do následujícího bodu vede ostře odlišný sklon. Hermite spline je na první pohled křivkou poměrně přirozenou, přechody mezi různými sklony jsou plynulejší a mohou mnohem lépe odrážet skutečnost v lidském těle. Poslední metoda, Catmull-Rom spline v jistých úsecích vykazuje nepřirozené přechody. To se děje zejména při náhlých skocích v hodnotách. Zde si nejsem jistý, zdali takto může skutečně děj v lidském těle probíhat, ale nepřijde mi to pravděpodobné.
 
 \begin{figure}
 \centering
 \captionsetup{width=1.0\textwidth}
 \begin{minipage}[ht]{0.65\textwidth}
 	\includegraphics[width=\linewidth]{img/sample-quad.png}
-	\caption{Výřez průběhu kvadratického spline}
+	\caption{Výřez průběhu kvadratického spline}\label{obr:quadfinal}
 \end{minipage}
 
 \begin{minipage}[ht]{0.65\textwidth}
 	\includegraphics[width=\linewidth]{img/sample-akima.png}
-	\caption{Výřez průběhu Akima spline}
+	\caption{Výřez průběhu Akima spline}\label{obr:akimafinal}
 \end{minipage}
 
 \begin{minipage}[ht]{0.65\textwidth}
 	\includegraphics[width=\linewidth]{img/sample-hermite.png}
-	\caption{Výřez průběhu Hermite spline s parametrem $\tau = 0.5$}
+	\caption{Výřez průběhu Hermite spline s parametrem $\tau = 0.5$}\label{obr:hermitefinal}
 \end{minipage}
 
 \begin{minipage}[ht]{0.65\textwidth}
 	\includegraphics[width=\linewidth]{img/sample-catmullrom.png}
-	\caption{Výřez průběhu Catmull-Rom spline s centripetal parametrizací}
+	\caption{Výřez průběhu Catmull-Rom spline s centripetal parametrizací}\label{obr:catmullromfinal}
 \end{minipage}
 
 \end{figure}
 
+\section{Porovnání paralelizačních metod}
 
+Ještě před výpočtem metrik zde uvádím tabulky časů výpočtu pro jednotlivé metody a paralelizační techniky.
 
-\section{Porovnání algoritmů}
+Základem je sériový algoritmus, který je brán jako referenční. Ač má mírně odlišnou implementaci, měl by stále fungovat jako referenční vzhledem k tomu, že veškeré odlišnosti v implementaci v paralelních verzích zohledňují paralelní běh, a tedy se snaží lépe optimalizovat cache a další důležitá hlediska.
+
+Pro měření hodnot času výpočtu bylo provedeno 10 spuštění a vypočítán průměrný čas. Měřený čas odpovídá pouze času výpočtu parametrů křivek, nikoliv generování statistik. Toto rozlišení bylo zvoleno s ohledem na vypovídací hodnotu a s ohledem na téma předmětu - hlavním úkolem bylo počítat parametry křivek, kde také měla probíhat paralelizace.
+
+Pro výpočet pomocí C++11 vláken byla použita 4 vlákna (odpovídá počtu procesorových jader referenčního stroje).
+
+Referenční stroj pro měření:
+\begin{itemize}[noitemsep]
+	\item Intel Core i5-4570 (Haswell, cache: 32 KB L1, 256 KB L2, 6 MB L3)
+	\item 16 GB DDR3
+	\item Intel HD Graphics 4600\footnote{pro OpenCL nepodporuje double precision hodnoty čísel s plovoucí des. čárkou, převádí se na single precision}
+	\item Windows 7 SP1, 64bit
+\end{itemize}
+
+\begin{table}[ht]
+\begin{center}
+	\begin{tabular}{ | l | c | c | c | c | }
+		\hline
+    	~ & sériový výpočet & C++11 vlákna & Intel TBB & OpenCL \\
+		\hline
+		\hline
+		QS & 86ms & 95ms & 37ms & 160ms \\ \hline
+		AS & 88ms & 305ms & 33ms & 198ms \\ \hline
+		HS & 78ms & 190ms & 48ms & 220ms \\ \hline
+		cCRS & 460ms & 620ms & 125ms & 250ms \\
+		\hline
+  \end{tabular}
+  \caption{Tabulka naměřených časů pro všechny interpolační metody a metody paralelizace}\label{tab:times}
+  \end{center}
+\end{table}
+
+Z hodnot v tabulce \ref{tab:times} lze nadále vypočíst urychlení vzhledem k sériovému algoritmu užitím vzorce
+
+\begin{equation}
+S = \frac{T_{sériový}}{T_{paralelní}}
+\end{equation}
+
+\begin{table}[ht]
+\begin{center}
+	\begin{tabular}{ | l | c | c | c | c | }
+		\hline
+    	~ & C++11 vlákna & Intel TBB & OpenCL \\
+		\hline
+		\hline
+		QS & {\color{Red} 0.905} & {\color{OliveGreen} 2.324} & {\color{Red} 0.538} \\ \hline
+		AS & {\color{Red} 0.289} & {\color{OliveGreen} 2.667} & {\color{Red} 0.444} \\ \hline
+		HS & {\color{Red} 0.411} & {\color{OliveGreen} 1.625} & {\color{Red} 0.355} \\ \hline
+		cCRS & {\color{Red} 0.742} & {\color{OliveGreen} 3.68} & {\color{OliveGreen} 1.84} \\
+		\hline
+  \end{tabular}
+  \caption{Tabulka urychlení paralelních algoritmů vzhledem k sériovým, hodnoty jsou zaokrouhleny na 3 desetinná místa}
+  \end{center}
+\end{table}
+
 
 \section{Metriky}
 
+K lepší představě o reálném urychlení pomocí paralelizace slouží standardní metriky, kterými jsou Amdahlův a Gustavsonův zákon a Karp-Flattova metrika. V této podkapitole jsou provedeny potřebné výpočty těchto metrik opět vzhledem k sériové verzi algoritmu.
+
 \subsection{Amdahlův zákon}
+
+Pro výpočet procentuálního vyjádření části kódu byl použit vzorec:
+\begin{equation}
+	f = \frac{\frac{p}{S}-1}{p-1},
+\end{equation}
+
+který je odvozen ze vzorce uvedeného na přednášce.
+
+\begin{table}[ht]
+\begin{center}
+	\begin{tabular}{ | l | c | c | c | c | }
+		\hline
+    	~ & C++11 vlákna & Intel TBB & OpenCL \\
+		\hline
+		\hline
+		QS & {\color{Red} 114.0\%} & {\color{OliveGreen} 24.0\%} & {\color{Red} 214.5\%} \\ \hline
+		AS & {\color{Red} 428.0\%} & {\color{OliveGreen} 16.7\%} & {\color{Red} 267.0\%} \\ \hline
+		HS & {\color{Red} 291.1\%} & {\color{OliveGreen} 48.7\%} & {\color{Red} 342.3\%} \\ \hline
+		cCRS & {\color{Red} 146.4\%} & {\color{OliveGreen} 2.9\%} & {\color{OliveGreen} 39.1\%} \\
+		\hline
+  \end{tabular}
+  \caption{Tabulka procentuálního vyjádření času stráveného v sériovém výpočtu}
+  \end{center}
+\end{table}
+\vspace{-1cm}
 
 \subsection{Gustavsonův zákon}
 
+Pro výpočet této metriky byl použit vzorec 
+
+\begin{equation}
+	\alpha = \frac{p-S}{p-1},
+\end{equation}
+
+\begin{table}[ht]
+\begin{center}
+	\begin{tabular}{ | l | c | c | c | c | }
+		\hline
+    	~ & C++11 vlákna & Intel TBB & OpenCL \\
+		\hline
+		\hline
+		QS & {\color{Red} 103.2\%} & {\color{OliveGreen} 55.9\%} & {\color{Red} 115.4\%} \\ \hline
+		AS & {\color{Red} 123.7\%} & {\color{OliveGreen} 44.4\%} & {\color{Red} 118.5\%} \\ \hline
+		HS & {\color{Red} 119.6\%} & {\color{OliveGreen} 79.2\%} & {\color{Red} 121.5\%} \\ \hline
+		cCRS & {\color{Red} 108.6\%} & {\color{OliveGreen} 10.7\%} & {\color{OliveGreen} 72.0\%} \\
+		\hline
+  \end{tabular}
+  \caption{Tabulka procentuálního vyjádření části kódu, kterou dle Gustavsonova zákona nelze paralelizovat}
+  \end{center}
+\end{table}
+
 \subsection{Karp-Flattova metrika}
 
+Pro výpočet této metriky byl použit vzorec 
+
+\begin{equation}
+	e = \frac{\frac{1}{\phi} - \frac{1}{p}}{1 - \frac{1}{p}},
+\end{equation}
+
+\begin{table}[ht]
+\begin{center}
+	\begin{tabular}{ | l | c | c | c | c | }
+		\hline
+    	~ & C++11 vlákna & Intel TBB & OpenCL \\
+		\hline
+		\hline
+		QS & {\color{Red} 114.0\%} & {\color{OliveGreen} 24.0\%} & {\color{Red} 214.5\%} \\ \hline
+		AS & {\color{Red} 428.0\%} & {\color{OliveGreen} 16.7\%} & {\color{Red} 267.0\%} \\ \hline
+		HS & {\color{Red} 291.1\%} & {\color{OliveGreen} 48.7\%} & {\color{Red} 342.3\%} \\ \hline
+		cCRS & {\color{Red} 146.4\%} & {\color{OliveGreen} 2.9\%} & {\color{OliveGreen} 39.1\%} \\
+		\hline
+  \end{tabular}
+  \caption{Tabulka procentuálního vyjádření části kódu, která byla dle Karp-Flattovy metriky vykonána sériově}
+  \end{center}
+\end{table}
 
 
 
 \chapter{Závěr}
 
+Zadání práce se podařilo splnit v plném rozsahu. Nejvíce problémů jsem zaznamenal v matematické části, jelikož jsem delší dobu žádný podobný výpočet nepotřeboval, a tak trvalo relativně delší dobu, než jsem se opět zorientoval.
+
+Výsledná aplikace implementuje čtyři interpolační metody, ze kterých jsou reálně použitelné právě tři. Dobu jejich výpočtu se podařilo zredukovat na únosně nízkou hodnotu.
+
+Co se týče paralelizační části, osobně pro mě mělo velký přínos seznámení se s knihovnou Intel Threading Building Blocks, jakožto velmi silného nástroje pro paralelizaci na systémech se sdílenou pamětí. Je poznat, že výkon této techniky je podstatně vyšší, než za použití klasických vláken OS a klasického modelu farmer-worker.
+
+Mrzí mne, že mi před odevzdáním nevyzbyl čas na technologii C++AMP, která se jeví mnohem zajímavěji a použitelněji než čisté OpenCL. Určitě se s touto technologií ale seznámím mimo tento předmět.
 
 
 
