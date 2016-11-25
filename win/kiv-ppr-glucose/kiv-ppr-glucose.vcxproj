@@ -136,6 +136,9 @@
       <AdditionalLibraryDirectories>$(INTELOCLSDKROOT)lib\x64</AdditionalLibraryDirectories>
       <AdditionalDependencies>OpenCL.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PostBuildEvent>
+      <Command>xcopy /y $(SolutionDir)..\src\approx\src\*.cl $(OutDir)</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\approx\src\ApproxAkimaSpline.cpp" />

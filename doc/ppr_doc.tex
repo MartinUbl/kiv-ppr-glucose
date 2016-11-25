@@ -1,6 +1,6 @@
 \documentclass[]{thesiskiv}
 
-\author{Martin Úbl}
+\author{Martin Úbl (A16N0026P)}
 
 \title{Paralelizace výpočtu parametrů interpolačních křivek}
 
@@ -194,7 +194,7 @@ V této kapitole je popsáno matematické pozadí metod vybraných k implementac
 
 \section{Kvadratický spline}\label{mat:quad}
 
-Kvadratický spline tvoří při interpolaci křivku, která je spojitá a spojitě diferencovatelná. Stejně jako každý jiný spline zachovává hodnoty derivací v uzlu tak, aby byly stejné pro levý i pravý úsek, což zaručuje spojitou diferencovatelnost.
+Kvadratický spline tvoří při interpolaci křivku, která je spojitá a spojitě diferencovatelná\cite{quad}. Stejně jako každý jiný spline zachovává hodnoty derivací v uzlu tak, aby byly stejné pro levý i pravý úsek, což zaručuje spojitou diferencovatelnost.
 
 Pro každý úsek platí, že lze interpolující křivku zapsat jako
 
@@ -241,13 +241,13 @@ Právě kvůli rozkmitu není tato metoda vhodná pro interpolaci v rámci syst�
 
 \begin{figure}[ht]
 	\centering
-	\includegraphics[width=0.8\textwidth]{img/rozkmit.png}\label{img:rozkmit}
-	\caption{Nežádoucí rozkmit kvadratického spline}
+	\includegraphics[width=0.8\textwidth]{img/rozkmit.png}
+	\caption{Nežádoucí rozkmit kvadratického spline}\label{img:rozkmit}
 \end{figure}
 
 \section{Akima spline}
 
-Akima spline je speciální formou kubického spline. Stejně jako kvadratický spline tvoří i Akima spline spojitě diferencovatelnou křivku, což opět zaručuje zachování derivací zleva a zprava v každém bodě.
+Akima spline je speciální formou kubického spline. Stejně jako kvadratický spline tvoří i Akima spline spojitě diferencovatelnou křivku, což opět zaručuje zachování derivací zleva a zprava v každém bodě\cite{akima}.
 
 Obecnou kubickou funkci lze zapsat rovnicí
 
@@ -308,7 +308,7 @@ Nevýhodou je mírně větší složitost výpočtu parametrů, tedy i mírně v
 
 \section{Hermite spline}
 
-Jedná se o další variantu kubického spline, obecný předpis je proto stejný jako v rovnici \ref{eq:cubic}. Stejně jako u ostatních polynomiálních spline jde o spojitě diferencovatelnou křivku.
+Jedná se o další variantu kubického spline, obecný předpis je proto stejný jako v rovnici \ref{eq:cubic}. Stejně jako u ostatních polynomiálních spline jde o spojitě diferencovatelnou křivku\cite{hermite}.
 
 Metoda je postavená na lineární kombinaci bázových funkcí, kterými jsou:
 
@@ -387,7 +387,7 @@ Výpočet je ale mírně složitější zejména proto, že je potřeba provád�
 
 \section{Centripetal Catmull-Rom spline}
 
-Catmull-Rom spline interpolační metody jsou podmnožinou Hermite spline metod. Použití metody Catmull-Rom je často v rovinných nebo prostorových interpolacích, například pro věrné napodobení cest mezi body při generování cesty, typicky v počítačových hrách. Pro obyčejnou funkční aproximaci ji použít však lze.
+Catmull-Rom spline interpolační metody jsou podmnožinou Hermite spline metod\cite{catmull}. Použití metody Catmull-Rom je často v rovinných nebo prostorových interpolacích, například pro věrné napodobení cest mezi body při generování cesty, typicky v počítačových hrách. Pro obyčejnou funkční aproximaci ji použít však lze.
 
 Catmull-Rom spline vyžaduje pro interpolaci jednoho segmentu 4 body, které jsou použity pro výpočet parametrů funkcí pro generování křivky mezi body prostředními. Do interpolačního procesu lze zanést parametrizaci v podobě stanovení parametru zvaného \uv{uzlový parametr} značeným $\alpha$ (často převáděný na parametr pnutí $\tau$), kterým lze snadno manipulovat s vlastnostmi křivky. Základní je parametrizace uniformní ($\alpha = 0, \tau = 0.5$), dále je pak často využívaná chordálová ($\alpha = 1, \tau = 0$), ovšem pro potřeby této práce je nejzajímavější parametrizace \emph{centripetal} ($\alpha = 0.5, \tau = 0.25$).
 
@@ -455,7 +455,13 @@ Kromě těchto polí je dále předvypočteno pole \texttt{mask\_weights}, kter�
 
 \subsubsection*{Ukládání vypočtených parametrů}
 
-Vypočtené parametry jsou ukládány do kondenzovaného pole, kde každému úseku křivky náleží právě jeden index. Zároveň se lze spolehnout, že po sobě jdoucí úseky mají po sobě jdoucí indexy v kondenzovaném poli.
+Vypočtené parametry jsou ukládány do kondenzovaného pole, kde každému úseku křivky náleží právě jeden index. Zároveň se lze spolehnout, že po sobě jdoucí úseky mají po sobě jdoucí indexy v kondenzovaném poli. Znázornění kondenzace pro masku 154 lze vidět na obrázku \ref{img:kond}
+
+\begin{figure}[ht]
+	\centering
+	\includegraphics[width=0.8\textwidth]{img/kondenzace.png}
+	\caption{Kondenzované pole parametrů}\label{img:kond}
+\end{figure}
 
 Zde ale vyvstává problém, jak efektivně dojít ke kondenzaci pole za běhu. Jednotlivým workerům je přidělován jako kus práce index do kondenzovaného pole. Každý worker si proto musí vypočítat index použitých hodnot v poli se všemi hodnotami, a to podle rovnice \ref{eq:kondenzace}.
 
@@ -504,7 +510,7 @@ V této části je popsán postup sestavení programu a návod na jeho obsluhu.
 
 \section{Sestavení programu}
 
-Zdrojové kódy programu zahrnují i solution pro IDE Microsoft Visual Studio verze 2015, a to v podsložce \texttt{\justify win/} pod názvem \texttt{\justify kiv-ppr-glucose.sln}.
+Zdrojové kódy programu zahrnují i solution pro IDE Microsoft Visual Studio verze 2015, a to v podsložce \texttt{\justify win/} pod názvem \texttt{\justify kiv-ppr-glucose.sln}. K úspěšnému zkompilování je nutné mít nainstalované a správně nalinkované knihovny \emph{SQLite3}, \emph{Intel TBB} a \emph{OpenCL}.
 
 Tuto solution stačí pomocí programu Visual Studio 2015 otevřít a vybrat ve výběrových boxech požadované parametry kompilace - nejpravděpodobněji půjde o kombinaci \texttt{Release} módu kompilace pro \texttt{x64} (x86\_64) architekturu.
 
@@ -774,6 +780,34 @@ Výsledná aplikace implementuje čtyři interpolační metody, ze kterých jsou
 Co se týče paralelizační části, osobně pro mě mělo velký přínos seznámení se s knihovnou Intel Threading Building Blocks, jakožto velmi silného nástroje pro paralelizaci na systémech se sdílenou pamětí. Je poznat, že výkon této techniky je podstatně vyšší, než za použití klasických vláken OS a klasického modelu farmer-worker.
 
 Mrzí mne, že mi před odevzdáním nevyzbyl čas na technologii C++AMP, která se jeví mnohem zajímavěji a použitelněji než čisté OpenCL. Určitě se s touto technologií ale seznámím mimo tento předmět.
+
+\begin{thebibliography}{9}
+
+\bibitem{akima}
+  Akima H. \emph{A New Method of Interpolation and Smooth Curve Fitting Based on Local Procedures}. ESSA Research Laboratories, Institute for Telecommunication Sciences, Boulder, Colorado, J. ACM 17, 4 (October 1970), 589-602.
+  
+\bibitem{catmull}
+  Yuksel C., Schaefer S., Keyser J. \emph{Parameterization and Applications of
+Catmull-Rom Curves} [online]. A\&M University College Station, 2010. [cit. 25.11.2016]\\ Dostupné z: \url{http://faculty.cs.tamu.edu/schaefer/research/cr_cad.pdf}
+
+\bibitem{hermite}
+  Mettke H., \emph{Convex cubic HERMITE-spline interpolation} [online]. Journal of Computational and Applied Mathematics, Volume 9, Issue 3, 1983, Pages 205-211, ISSN 0377-0427\\
+Dostupné z: \url{http://www.sciencedirect.com/science/article/pii/0377042783900134}
+
+\bibitem{quad}
+  Behforooz G., \emph{Quadratic spline} [online]. Applied Mathematics Letters, Volume 1, Issue 2, 1988, Pages 177-180, ISSN 0893-9659.\\
+Dostupné z: \url{http://www.sciencedirect.com/science/article/pii/0893965988900675}
+
+\bibitem{tbb}
+  Intel Corporation. \emph{Threading Building Blocks documentation} [online]. [cit. 25.11.2016]\\
+Dostupné z: \url{https://www.threadingbuildingblocks.org/documentation}
+
+\bibitem{opencl}
+  The Khronos Group Inc., \emph{OpenCL 2.1 Reference pages} [online]. [cit. 25.11.2016]\\
+Dostupné z: \url{https://www.khronos.org/registry/cl/sdk/2.1/docs/man/xhtml/}
+	
+	
+\end{thebibliography}  	
 
 
 
