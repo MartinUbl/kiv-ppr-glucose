@@ -81,7 +81,7 @@ void CalculateAndPrintStatsForMask(size_t cur, std::vector<CGlucoseLevels*> &lev
     maskedZeroCount = levCount - maskedCount;
 
     refDerivations.resize(levCount);
-    for (int i = 0; i < levCount; i++)
+    for (i = 0; i < levCount; i++)
     {
         curtime = levs[i].datetime;
         approxVector[cur]->GetLevels(curtime, 0, 1, &refDerivations[i], &filled, 1);
@@ -98,7 +98,7 @@ void CalculateAndPrintStatsForMask(size_t cur, std::vector<CGlucoseLevels*> &lev
     errorsDer[ERR_ONE].resize(maskedCount);
 
     int j = 0, k = 0;
-    for (int i = 0; i < levCount; i++)
+    for (i = 0; i < levCount; i++)
     {
         curtime = levs[i].datetime;
         approxVector[cur]->GetLevels(curtime, 0, 1, &target, &filled, 0);

@@ -197,7 +197,7 @@ void ApproxQuadraticSpline::CalculateParameters_OpenCL()
             for (int j = 0; j < valueCount; j++)
                 cCoefs[mask][j] = tmp[mask * valueCount + j];
 
-        free(tmp);
+        delete[] tmp;
     }
     else
     {
@@ -220,7 +220,7 @@ void ApproxQuadraticSpline::CalculateParameters_OpenCL()
             for (int j = 0; j < valueCount; j++)
                 cCoefs[mask][j] = (double)tmp[mask * valueCount + j];
 
-        free(tmp);
+        delete[] tmp;
     }
 
     // flush and release local resources
@@ -236,7 +236,7 @@ void ApproxQuadraticSpline::CalculateParameters_OpenCL()
     ret = clReleaseMemObject(cc_m);
 }
 
-HRESULT IfaceCalling ApproxQuadraticSpline::Approximate(TApproximationParams *params)
+HRESULT IfaceCalling ApproxQuadraticSpline::Approximate(TApproximationParams*)
 {
     uint32_t mask;
 

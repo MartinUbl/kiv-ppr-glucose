@@ -35,7 +35,7 @@ uint8_t appCurrentTestMask;
 #define DEBUG_SVG_PRINT 0
 
 // reduces all times by minimum of all times - causes less precision loss
-static floattype reduceLevels(CGlucoseLevels* lvls)
+inline floattype reduceLevels(CGlucoseLevels* lvls)
 {
     TGlucoseLevel* lev;
     size_t cnt;

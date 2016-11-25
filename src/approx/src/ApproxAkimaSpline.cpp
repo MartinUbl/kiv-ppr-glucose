@@ -670,7 +670,7 @@ void ApproxAkimaSpline::CalculateParameters_OpenCL()
             for (int j = 0; j < valueCount; j++)
                 a3Coefs[mask][j] = tmp[mask * valueCount + j];
 
-        free(tmp);
+        delete[] tmp;
     }
     else
     {
@@ -699,7 +699,7 @@ void ApproxAkimaSpline::CalculateParameters_OpenCL()
             for (int j = 0; j < valueCount; j++)
                 a3Coefs[mask][j] = (double)tmp[mask * valueCount + j];
 
-        free(tmp);
+        delete[] tmp;
     }
 
     // flush and release local resources
@@ -714,7 +714,7 @@ void ApproxAkimaSpline::CalculateParameters_OpenCL()
     ret = clReleaseMemObject(ders_m);
 }
 
-HRESULT IfaceCalling ApproxAkimaSpline::Approximate(TApproximationParams *params)
+HRESULT IfaceCalling ApproxAkimaSpline::Approximate(TApproximationParams*)
 {
     uint32_t mask;
 

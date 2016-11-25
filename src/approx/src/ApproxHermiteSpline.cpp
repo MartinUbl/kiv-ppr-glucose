@@ -212,7 +212,7 @@ void ApproxHermiteSpline::CalculateParameters_threads()
         delete workers[i];
     }
 
-    delete workers;
+    delete[] workers;
 }
 
 void ApproxHermiteSpline::CalculateParameters_AMP()
@@ -413,7 +413,7 @@ void ApproxHermiteSpline::CalculateParameters_OpenCL()
                 for (int k = 0; k < 4; k++)
                     yCoefs[mask][j][k] = tmp[mask * valueCount * 4 + j * 4 + k];
 
-        free(tmp);
+        delete[] tmp;
     }
     else
     {
@@ -432,7 +432,7 @@ void ApproxHermiteSpline::CalculateParameters_OpenCL()
                 for (int k = 0; k < 4; k++)
                     yCoefs[mask][j][k] = (floattype)(tmp[mask * valueCount * 4 + j * 4 + k]);
 
-        free(tmp);
+        delete[] tmp;
     }
 
     // flush and release local resources

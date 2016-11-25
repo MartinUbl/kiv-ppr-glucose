@@ -256,7 +256,7 @@ void ApproxCatmullRomSpline::CalculateParameters_threads()
         delete workers[i];
     }
 
-    delete workers;
+    delete[] workers;
 }
 
 void ApproxCatmullRomSpline::CalculateParameters_AMP()
@@ -469,7 +469,7 @@ void ApproxCatmullRomSpline::CalculateParameters_OpenCL()
                 for (int k = 0; k < 4; k++)
                     yCoefs[mask][j][k] = tmp[mask * valueCount * 4 + j * 4 + k];
 
-        free(tmp);
+        delete[] tmp;
     }
     else
     {
@@ -488,7 +488,7 @@ void ApproxCatmullRomSpline::CalculateParameters_OpenCL()
                 for (int k = 0; k < 4; k++)
                     yCoefs[mask][j][k] = (double)tmp[mask * valueCount * 4 + j * 4 + k];
 
-        free(tmp);
+        delete[] tmp;
     }
 
     // flush and release local resources
